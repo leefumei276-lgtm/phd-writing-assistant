@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>博士写作助手 - 完美终结版</title>
+    <title>博士写作助手 - 纯净本地版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -14,11 +14,13 @@
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes pulse-soft { 0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.2); } 70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); } 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } }
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
         .animate-slide-up { animation: slide-up 0.3s ease-out; }
         .animate-fade-in { animation: fade-in 0.2s ease-out; }
         .animate-scale-in { animation: scale-in 0.2s ease-out; }
         .animate-pulse-soft { animation: pulse-soft 2s infinite; }
+        .animate-bounce-slow { animation: bounce-slow 2s infinite ease-in-out; }
         
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .primary-gradient { background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%); }
@@ -50,30 +52,26 @@
         .fab-btn { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%); box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.5); display: flex; align-items: center; justify-content: center; color: white; transition: all 0.2s; border: 4px solid white; }
         .fab-btn:active { transform: scale(0.95); }
         
+        /* Rank Styles */
+        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color:white; }
+        .rank-2 { background: linear-gradient(135deg, #E0E0E0, #BDBDBD); color:white; }
+        .rank-3 { background: linear-gradient(135deg, #CD7F32, #A0522D); color:white; }
+
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
     <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
+        <!-- 初始加载画面，JS加载后会被替换 -->
         <div class="flex flex-col items-center justify-center h-screen text-slate-400 gap-3">
             <div class="spinner"></div>
-            <p class="text-xs">正在布置书房...</p>
+            <p class="text-xs">正在整理书桌...</p>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let currentUserUid = null;
-
+    <script>
+        // --- Data ---
         const psychQuotes = [
             "种一棵树最好的时间是十年前，其次是现在。", 
             "学术是一场马拉松，允许自己慢下来，但不要停。", 
@@ -85,7 +83,6 @@
             "今天的低效不代表无能，接纳自己的节奏。"
         ];
 
-        // 智能鼓励 & 自动生成配置
         const encouragementRules = [
             { keywords: ['难', '卡', '不动', '烦', '乱'], msg: "抱抱你 (づ｡◕‿‿◕｡)づ 允许自己卡顿，明天又是新的一天。" },
             { keywords: ['累', '困', '乏', '倦'], msg: "辛苦啦！大脑高负荷运转这么久，快去吃点好吃的犒劳一下自己！🍵" },
@@ -106,6 +103,14 @@
             sad: ["今天有点艰难，但至少我坚持下来了。", "心情有点低落，或许是该换个思路了。"],
             tired: ["脑细胞已耗尽，急需充电！🔋", "实在是太困了，先苟住，明天再战！💤"]
         };
+
+        // 模拟排行榜数据（让本地版也有氛围）
+        const MOCK_USERS = [
+            { name: "学术卷王", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Felix", baseWords: 2000 },
+            { name: "文献杀手", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka", baseWords: 1500 },
+            { name: "深夜战神", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Milo", baseWords: 3000 },
+            { name: "早起鸟", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Bella", baseWords: 800 }
+        ];
 
         const state = {
             view: 'loading',
@@ -132,7 +137,6 @@
             showGradSettings: false,
             viewDate: new Date().toISOString().split('T')[0],
             dailyQuote: psychQuotes[0],
-            // Manual Entry Form
             formData: { 
                 date: '', 
                 startCount: 0, 
@@ -143,7 +147,6 @@
                 chapter: '', 
                 duration: '' 
             },
-            // Drafts for switching goals without losing data
             entryDrafts: {}, 
             newGoalData: { name: '', targetQty: 1, unit: '篇', targetWords: 10000 },
             planFormData: { target: 1000, content: '', linkedGoalId: 'thesis' },
@@ -165,10 +168,7 @@
             state.totalWordGoal = data.totalWordGoal || 100000;
             state.graduationDate = data.graduationDate || '';
             state.currentSession = JSON.parse(localStorage.getItem(`phd_session_${username}`) || 'null');
-            
-            // Initialize drafts container
             state.entryDrafts = {};
-
             localStorage.setItem('phd_current_user', username);
             state.view = 'app';
             render();
@@ -198,36 +198,48 @@
             else localStorage.removeItem(`phd_session_${state.user.username}`);
         }
 
-        // --- Cloud Sync ---
-        async function syncLeaderboard() {
-            if (!currentUserUid || !state.user) return;
-            const today = getTodayStr();
-            const words = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'daily_rankings', `${today}_${state.user.username}`), {
-                    username: state.user.username, avatar: state.user.avatar, wordCount: words, date: today
+        // --- Simulated Leaderboard (Local Only) ---
+        function generateMockLeaderboard() {
+            // Generate deterministic mock data based on date
+            const todayStr = getTodayStr();
+            const seed = todayStr.split('-').join(''); 
+            const mockData = MOCK_USERS.map(u => {
+                // Random variation per day
+                const variation = Math.floor(Math.random() * 1000); 
+                return {
+                    username: u.name,
+                    avatar: u.avatar,
+                    wordCount: u.baseWords + variation,
+                    isMe: false
+                };
+            });
+            
+            // Add current user
+            if (state.user) {
+                const myWords = state.entries.reduce((acc, e) => e.date === todayStr ? acc + e.dailyCount : acc, 0);
+                mockData.push({
+                    username: state.user.username,
+                    avatar: state.user.avatar,
+                    wordCount: myWords,
+                    isMe: true
                 });
-            } catch (e) { console.warn("Sync failed", e); }
+            }
+            return mockData.sort((a,b) => b.wordCount - a.wordCount);
         }
 
         async function fetchLeaderboard() {
             state.loadingLeaderboard = true; render();
-            const today = getTodayStr();
-            try {
-                const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'daily_rankings'));
-                const list = [];
-                snap.forEach(d => { if (d.data().date === today) list.push(d.data()); });
-                state.leaderboard = list.sort((a,b) => b.wordCount - a.wordCount);
-            } catch (e) { 
-                if(state.user) {
-                    const localWords = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-                    state.leaderboard = [{username: state.user.username, avatar: state.user.avatar, wordCount: localWords}];
-                }
-            } finally { state.loadingLeaderboard = false; render(); }
+            // Simulate network delay
+            setTimeout(() => {
+                state.leaderboard = generateMockLeaderboard();
+                state.loadingLeaderboard = false;
+                render();
+            }, 600);
         }
 
         // --- Helpers ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
+        
         const calcStats = (targetDate) => {
             const total = state.entries.reduce((acc, e) => acc + e.dailyCount, 0); 
             const today = state.entries.reduce((acc, e) => e.date === targetDate ? acc + e.dailyCount : acc, 0);
@@ -236,14 +248,6 @@
             return { total, today, avg };
         };
         const getDaysLeft = () => state.graduationDate ? Math.ceil((new Date(state.graduationDate) - new Date()) / 86400000) : null;
-        
-        const cleanOldPlans = () => {
-            const today = getTodayStr();
-            if (state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
-                state.dailyPlans = [];
-                saveUserData();
-            }
-        };
         
         const getPlanProgress = (planId, targetDate) => {
             return state.entries
@@ -267,6 +271,14 @@
             return fallbackMsgs[Math.floor(Math.random() * fallbackMsgs.length)];
         };
 
+        const cleanOldPlans = () => {
+            const today = getTodayStr();
+            if (state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
+                state.dailyPlans = [];
+                saveUserData();
+            }
+        };
+
         // --- Actions ---
         window.actions = {
             auth: (e) => { e.preventDefault(); const u = e.target.username.value.trim(), p = e.target.password.value.trim(); if(!u||!p) return; state.loginMode === 'login' ? login(u,p) : register(u,p); },
@@ -279,26 +291,21 @@
             setTab: (t) => { 
                 state.activeTab = t; 
                 if(t==='add' && !state.currentSession) { 
-                    // Prepare form with default goal
-                    const defaultGoalId = state.customGoals.length > 0 ? state.customGoals[0].id : '';
-                    // Initialize if first time entering
-                    if (!state.formData.linkedGoalId && defaultGoalId) {
-                        const lastCount = getLastCountForGoal(defaultGoalId);
-                        state.formData = {
-                            date: getTodayStr(), 
-                            linkedGoalId: defaultGoalId,
-                            startCount: lastCount,
-                            endCount: lastCount, 
-                            chapter: '', mood: 'neutral', reflection: '', duration: ''
-                        };
-                    }
+                    const defaultGoalId = state.customGoals.length > 0 ? state.customGoals[0].id : 'thesis';
+                    const lastCount = getLastCountForGoal(defaultGoalId);
+                    state.formData = {
+                        date: getTodayStr(), 
+                        linkedGoalId: defaultGoalId,
+                        startCount: lastCount,
+                        endCount: lastCount, 
+                        chapter: '', mood: 'neutral', reflection: '', duration: ''
+                    };
                 } 
                 if(t==='rank') fetchLeaderboard(); 
                 render(); 
             },
             toggleSidebar: () => { state.showSidebar = !state.showSidebar; render(); },
             
-            // Date Nav
             setViewDate: (d) => { state.viewDate = d; render(); },
             changeDate: (days) => { 
                 const d = new Date(state.viewDate); 
@@ -306,9 +313,7 @@
                 state.viewDate = d.toISOString().split('T')[0]; 
                 render(); 
             },
-            goToToday: () => { state.viewDate = getTodayStr(); render(); },
             
-            // Plans
             openAddPlan: () => { 
                 state.editingPlanId = null;
                 const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : '';
@@ -337,7 +342,6 @@
                 if(confirm("确定删除这个目标吗？")) { state.dailyPlans = state.dailyPlans.filter(p => p.id !== id); saveUserData(); render(); }
             },
 
-            // Session
             start: (planId) => { 
                 const plan = state.dailyPlans.find(p => p.id === planId);
                 const linkedGoalId = plan ? plan.linkedGoalId : '';
@@ -365,18 +369,8 @@
                 const el = document.querySelector('textarea[name="reflection"]');
                 if(el) el.value = text;
             },
-            
-            // Improved Form Handling with Drafts
             setFormData: (f, v) => { 
                 state.formData[f] = v;
-                
-                // Save to Draft for current goal if applicable
-                const currentGoalId = state.formData.linkedGoalId;
-                if (currentGoalId) {
-                    if (!state.entryDrafts[currentGoalId]) state.entryDrafts[currentGoalId] = {};
-                    state.entryDrafts[currentGoalId][f] = v;
-                }
-
                 if (f === 'endCount') {
                     const isFocus = !!state.currentSession;
                     const start = isFocus ? state.currentSession.startCount : parseInt(state.formData.startCount);
@@ -384,47 +378,18 @@
                     const el = document.getElementById('net-word-display');
                     if(el) { el.innerText = diff > 0 ? `+${diff}` : diff; el.style.color = diff > 0 ? '#10B981' : (diff < 0 ? '#EF4444' : '#94A3B8'); }
                 }
-                
-                // Switching Goals Logic
                 if (f === 'linkedGoalId') {
-                    // 1. Retrieve real last count from DB (Source of Truth)
                     const lastCount = getLastCountForGoal(v);
-                    
-                    // 2. Retrieve Draft if exists
-                    const draft = state.entryDrafts[v] || {};
-                    
-                    // 3. Determine form values
-                    // Use real last count as start, unless user manually overrode it in draft?
-                    // Safer: Always use real last count for start, populate others from draft
-                    const newStart = lastCount;
-                    const newEnd = draft.endCount ? draft.endCount : lastCount;
-                    const newChapter = draft.chapter || (state.dailyPlans.find(p => p.linkedGoalId === v)?.content || '');
-                    const newMood = draft.mood || 'neutral';
-                    const newReflect = draft.reflection || '';
-                    
-                    // Update State
-                    state.formData.linkedGoalId = v;
-                    state.formData.startCount = newStart;
-                    state.formData.endCount = newEnd;
-                    state.formData.chapter = newChapter;
-                    state.formData.mood = newMood;
-                    state.formData.reflection = newReflect;
-
-                    // DOM Updates (Fast update)
+                    state.formData.startCount = lastCount;
+                    state.formData.endCount = lastCount;
+                    const todayPlan = state.dailyPlans.find(p => p.linkedGoalId === v);
+                    state.formData.chapter = todayPlan ? todayPlan.content : '';
                     const startInput = document.querySelector('input[name="startCount"]');
                     const endInput = document.querySelector('input[name="endCount"]');
                     const chapInput = document.querySelector('input[name="chapter"]');
-                    const reflectInput = document.querySelector('textarea[name="reflection"]');
-                    
-                    if(startInput) startInput.value = newStart;
-                    if(endInput) endInput.value = newEnd;
-                    if(chapInput) chapInput.value = newChapter;
-                    if(reflectInput) reflectInput.value = newReflect;
-                    
-                    // Trigger net count update
-                    actions.setFormData('endCount', newEnd);
-                    // Rerender to update mood icons visual state
-                    render();
+                    if(startInput) startInput.value = lastCount;
+                    if(endInput) endInput.value = lastCount;
+                    if(chapInput) chapInput.value = state.formData.chapter;
                 }
             },
             end: async (e) => {
@@ -461,7 +426,6 @@
                         goalName = g.name;
                         if(g.unit === '字') g.current = (g.current || 0) + diff;
                     }
-                    // Clear draft for this goal upon success
                     delete state.entryDrafts[linkedGoalId];
                 }
                 
@@ -472,16 +436,11 @@
                     mood, reflection, linkedPlanContent: planContent, linkedGoalName: goalName, linkedPlanId: planId, linkedGoalId: linkedGoalId
                 });
                 state.entries.sort((a,b)=> new Date(b.date)-new Date(a.date));
-                
                 state.currentSession = null;
-                // Reset form
-                const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : '';
-                const freshStart = getLastCountForGoal(defaultGoal);
-                state.formData = { date: getTodayStr(), startCount: freshStart, endCount: freshStart, mood: 'neutral', reflection: '', chapter: '', linkedGoalId: defaultGoal, duration: '' }; 
-                
+                state.formData = { date: getTodayStr(), startCount: 0, endCount: 0, mood: 'neutral', reflection: '', chapter: '', linkedGoalId: '', duration: '' }; 
                 state.feedbackData = { diff, linkedGoalName: goalName, encourageMsg }; 
                 state.showFeedback = true;
-                saveUserData(); await syncLeaderboard(); render();
+                saveUserData(); render();
             },
             cancelSession: () => { if(confirm("放弃本次专注？")) { state.currentSession = null; saveUserData(); render(); } },
             setMood: (m) => { state.formData.mood = m; render(); },
@@ -509,7 +468,7 @@
             closeProfile: () => { state.showProfileModal = false; render(); },
             setTempProfile: (f,v) => state.tempProfile[f]=v,
             randAvatar: () => { state.tempProfile.avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}`; render(); },
-            saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); syncLeaderboard(); render(); }
+            saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); render(); }
         };
 
         // --- Render ---
@@ -535,7 +494,6 @@
 
         function renderProgressBar(current, target, label, isCuteMode = false) {
             const pct = Math.max(0, Math.min(100, target > 0 ? (current / target) * 100 : 0));
-            
             if (isCuteMode) {
                 let char = "🌱", bubbleText = `${Math.round(pct)}%`, color = "fill-blue";
                 if (pct > 10) { char = "🌿"; bubbleText = "加油！"; }
@@ -638,7 +596,17 @@
             </div>`;
         }
 
-        // --- Render Main ---
+        function renderRank() {
+            if(state.loadingLeaderboard) return `<div class="p-10 text-center text-slate-400">加载中...</div>`;
+            const list = state.leaderboard.map((u,i)=>`<div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl mb-2"><span class="font-bold w-6 text-center text-slate-400">${i+1}</span><img src="${u.avatar}" class="w-8 h-8 rounded-full"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><span class="font-bold text-indigo-600">${u.wordCount}字</span></div>`).join('');
+            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg mb-4"><h2 class="font-bold text-lg">今日龙虎榜</h2><p class="text-xs opacity-80">全网同步 · 实时更新</p></div>${list||'<p class="text-center text-slate-400 mt-10">暂无数据</p>'}</div>`;
+        }
+
+        function renderHistory() {
+            const list = state.entries.slice().reverse().map(e=>`<div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-3 border-l-4 border-l-indigo-500"><div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">${e.date}</span><span class="text-green-600 font-bold">+${e.dailyCount}</span></div><div class="text-sm font-bold text-slate-800 mb-1">${e.linkedPlanContent || e.linkedGoalName || '自由写作'}</div><div class="text-xs text-slate-500">${e.reflection||'无感想'}</div></div>`).join('');
+            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="flex justify-between items-center mb-4"><h2 class="font-bold text-lg text-slate-800">历史记录</h2><span class="text-xs text-slate-400">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-10">空空如也</p>'}</div>`;
+        }
+
         function render() {
             const app = document.getElementById('app');
             app.innerHTML = '';
@@ -682,33 +650,21 @@
 
                     const nav = `<nav class="bg-white border-t border-slate-100 flex justify-around items-center h-16 shrink-0 z-20 pb-safe"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg -mt-6 mb-1"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('rank')" class="flex flex-col items-center gap-1 ${state.activeTab==='rank'?'text-indigo-600':'text-slate-400'}">${Icons.Medal}<span class="text-[10px]">榜单</span></button></nav>`;
 
-                    app.innerHTML = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-100"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
+                    app.innerHTML = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-100"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full">${AppLogo("w-6 h-6")}</div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
                 }
             }
             lucide.createIcons();
         }
-        
-        function renderRank() {
-            if(state.loadingLeaderboard) return `<div class="p-10 text-center text-slate-400">加载中...</div>`;
-            const list = state.leaderboard.map((u,i)=>`<div class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl mb-2"><span class="font-bold w-6 text-center text-slate-400">${i+1}</span><img src="${u.avatar}" class="w-8 h-8 rounded-full"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><span class="font-bold text-indigo-600">${u.wordCount}字</span></div>`).join('');
-            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="bg-indigo-600 text-white p-4 rounded-xl shadow-lg mb-4"><h2 class="font-bold text-lg">今日龙虎榜</h2><p class="text-xs opacity-80">全网同步 · 实时更新</p></div>${list||'<p class="text-center text-slate-400 mt-10">暂无数据</p>'}</div>`;
-        }
-        function renderHistory() {
-            const list = state.entries.slice().reverse().map(e=>`<div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-3 border-l-4 border-l-indigo-500"><div class="flex justify-between mb-1"><span class="text-xs font-bold text-slate-400">${e.date}</span><span class="text-green-600 font-bold">+${e.dailyCount}</span></div><div class="text-sm font-bold text-slate-800 mb-1">${e.linkedPlanContent || e.linkedGoalName || '自由写作'}</div><div class="text-xs text-slate-500">${e.reflection||'无感想'}</div></div>`).join('');
-            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="flex justify-between items-center mb-4"><h2 class="font-bold text-lg text-slate-800">历史记录</h2><span class="text-xs text-slate-400">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-10">空空如也</p>'}</div>`;
-        }
 
-        async function main() {
-            try { await signInAnonymously(auth); } catch(e){} 
-            onAuthStateChanged(auth, (user) => {
-                if(user) { currentUserUid = user.uid; }
-                const savedUser = localStorage.getItem('phd_current_user');
-                if (savedUser) loadLocalUser(savedUser);
-                else { state.view = 'login'; render(); }
-            });
+        // --- Start ---
+        // Check local user immediately
+        const savedUser = localStorage.getItem('phd_current_user');
+        if (savedUser) {
+            loadLocalUser(savedUser);
+        } else {
+            state.view = 'login';
+            render();
         }
-        main();
-
     </script>
 </body>
 </html>
