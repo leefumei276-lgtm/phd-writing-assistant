@@ -126,10 +126,9 @@
         </div>
     </div>
 
-    <!-- 移除 type="module" 以避免模块加载问题，使用常规 script 标签 -->
+    <!-- 移除 module 类型，使用标准脚本以提高兼容性 -->
     <script>
-        // --- 核心状态 ---
-        // 移除 Firebase 依赖，纯本地运行
+        // --- 核心数据 ---
         
         const psychQuotes = [
             "今天写的每一个字，都会在未来为你发光 ✨",
@@ -165,7 +164,6 @@
             tired: ["脑细胞已耗尽，急需充电！🔋", "实在是太困了，先苟住，明天再战！💤"]
         };
 
-        // 模拟排行榜数据（本地版专用）
         const MOCK_LEADERBOARD = [
             { username: "学术卷王", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Felix", wordCount: 3200 },
             { username: "文献杀手", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka", wordCount: 2100 },
@@ -173,6 +171,7 @@
             { username: "早起鸟", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Bella", wordCount: 500 }
         ];
 
+        // --- 状态管理 ---
         const state = {
             view: 'loading',
             activeTab: 'dashboard', 
@@ -215,50 +214,69 @@
             tempProfile: { name: '', avatar: '' }
         };
 
-        // --- Local User System ---
-        function getSafeJSON(key, defaultVal) {
-            try {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : defaultVal;
-            } catch (e) {
-                console.error(`Error parsing ${key}`, e);
-                return defaultVal;
+        // --- 安全的本地存储封装 ---
+        // 修复问题：增加 try/catch 防止隐私模式下 localStorage 报错中断脚本
+        const Storage = {
+            get: (key, defaultVal = null) => {
+                try {
+                    const item = localStorage.getItem(key);
+                    return item ? JSON.parse(item) : defaultVal;
+                } catch (e) {
+                    console.warn(`Error reading ${key}:`, e);
+                    return defaultVal;
+                }
+            },
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (e) {
+                    console.warn(`Error writing ${key}:`, e);
+                    // 如果无法写入，可以考虑弹窗提示，但暂时忽略以保持流程
+                }
+            },
+            remove: (key) => {
+                try {
+                    localStorage.removeItem(key);
+                } catch(e) {}
             }
-        }
+        };
 
-        function getUsersDirectory() { return getSafeJSON('phd_users_directory', {}); }
-        function saveUsersDirectory(dir) { localStorage.setItem('phd_users_directory', JSON.stringify(dir)); }
+        // --- 用户系统 ---
+        function getUsersDirectory() { return Storage.get('phd_users_directory', {}); }
+        function saveUsersDirectory(dir) { Storage.set('phd_users_directory', dir); }
 
         function loadLocalUser(username) {
             try {
                 const dir = getUsersDirectory();
-                // 自动注册
+                
+                // 自动注册（如果不存在）
                 if (!dir[username]) {
                     dir[username] = { password: 'any', avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
                     saveUsersDirectory(dir);
-                    localStorage.setItem(`phd_data_${username}`, JSON.stringify({ entries: [], customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }] }));
+                    Storage.set(`phd_data_${username}`, { entries: [], customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }] });
                 }
 
                 state.user = { username: username, avatar: dir[username].avatar };
-                const data = getSafeJSON(`phd_data_${username}`, {});
+                const data = Storage.get(`phd_data_${username}`, {});
                 
-                state.entries = data.entries || [];
-                state.customGoals = data.customGoals || [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
-                state.dailyPlans = data.dailyPlans || [];
+                // 数据初始化，防止 undefined
+                state.entries = Array.isArray(data.entries) ? data.entries : [];
+                state.customGoals = Array.isArray(data.customGoals) ? data.customGoals : [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
+                state.dailyPlans = Array.isArray(data.dailyPlans) ? data.dailyPlans : [];
                 state.totalWordGoal = data.totalWordGoal || 100000;
                 state.graduationDate = data.graduationDate || '';
                 
-                state.currentSession = getSafeJSON(`phd_session_${username}`, null);
+                state.currentSession = Storage.get(`phd_session_${username}`, null);
                 state.entryDrafts = {};
                 
-                localStorage.setItem('phd_current_user', username);
+                Storage.set('phd_current_user', username); // 只有成功加载才保存
                 state.view = 'app';
                 state.dailyQuote = psychQuotes[Math.floor(Math.random() * psychQuotes.length)];
                 
-                render();
+                render(); // 确保加载完数据后立即渲染
             } catch(e) {
-                console.error("Load user failed", e);
-                alert("加载用户数据出错，请尝试清除缓存");
+                console.error("User load failed:", e);
+                // 如果出错，强制回退到登录页，避免卡死
                 state.view = 'login';
                 render();
             }
@@ -267,29 +285,21 @@
         function saveUserData() {
             if (!state.user) return;
             const data = { entries: state.entries, customGoals: state.customGoals, dailyPlans: state.dailyPlans, totalWordGoal: state.totalWordGoal, graduationDate: state.graduationDate };
-            localStorage.setItem(`phd_data_${state.user.username}`, JSON.stringify(data));
-            if (state.currentSession) localStorage.setItem(`phd_session_${state.user.username}`, JSON.stringify(state.currentSession));
-            else localStorage.removeItem(`phd_session_${state.user.username}`);
+            Storage.set(`phd_data_${state.user.username}`, data);
+            if (state.currentSession) Storage.set(`phd_session_${state.user.username}`, state.currentSession);
+            else Storage.remove(`phd_session_${state.user.username}`);
         }
 
-        // --- Mock Cloud Sync (No Backend) ---
-        async function syncLeaderboard() {
-            // No-op in static version
-            console.log("Synced to local (simulated)");
-        }
-
+        // --- 排行榜 (模拟) ---
         async function fetchLeaderboard() {
             state.loadingLeaderboard = true; 
             render();
             
-            // 模拟延迟
             setTimeout(() => {
-                // 混合 Mock 数据和当前用户数据
                 let list = [...MOCK_LEADERBOARD];
                 if (state.user) {
                     const today = getTodayStr();
                     const myWords = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-                    // 如果已存在则更新，不存在则添加
                     const existingIdx = list.findIndex(u => u.username === state.user.username);
                     if (existingIdx >= 0) {
                         list[existingIdx].wordCount = myWords;
@@ -303,7 +313,7 @@
             }, 600);
         }
 
-        // --- Helpers ---
+        // --- 辅助函数 ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         
         const calcStats = (targetDate) => {
@@ -339,7 +349,8 @@
 
         const cleanOldPlans = () => {
             const today = getTodayStr();
-            if (state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
+            // 防御性编程：确保 dailyPlans 存在
+            if (state.dailyPlans && state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
                 state.dailyPlans = [];
                 saveUserData();
             }
@@ -355,7 +366,7 @@
             return { emoji: '📌', cls: 'tag-orange' }; 
         };
 
-        // --- Actions ---
+        // --- 交互 Action ---
         window.actions = {
             auth: (e) => { 
                 e.preventDefault(); 
@@ -365,7 +376,7 @@
             toggleAuth: () => { },
             
             askLogout: () => { state.showSidebar = false; state.showLogoutModal = true; render(); },
-            confirmLogout: () => { localStorage.removeItem('phd_current_user'); state.user = null; state.showLogoutModal = false; state.view = 'login'; render(); },
+            confirmLogout: () => { Storage.remove('phd_current_user'); state.user = null; state.showLogoutModal = false; state.view = 'login'; render(); },
             cancelLogout: () => { state.showLogoutModal = false; render(); },
             
             setTab: (t) => { 
@@ -627,7 +638,6 @@
         function renderDashboard() {
             const { total, today, avg } = calcStats(state.viewDate);
             const days = getDaysLeft();
-            
             const isToday = state.viewDate === getTodayStr();
             const dateObj = new Date(state.viewDate);
             const dateStr = `${dateObj.getFullYear()}年${dateObj.getMonth()+1}月${dateObj.getDate()}日`;
@@ -643,18 +653,15 @@
                     const pct = Math.min(100, Math.round(((currentProgress || 0) / plan.target) * 100));
                     const goal = state.customGoals.find(g => g.id === plan.linkedGoalId);
                     const goalName = goal ? goal.name : '自由写作';
-                    
                     const tagStyle = getGoalTagStyle(goalName);
                     const bgClass = isDone ? 'card-gradient-done border-green-200' : 'card-gradient-1 border-white';
                     
                     return `
                     <div class="${bgClass} rounded-[24px] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] mb-6 relative transition-all hover:scale-[1.01] border">
-                        
                         <div class="absolute top-5 right-5 flex gap-2">
                             <button onclick="actions.openEditPlan('${plan.id}')" class="text-slate-300 hover:text-indigo-500">${Icons.Edit}</button>
                             <button onclick="actions.deletePlan('${plan.id}')" class="text-slate-300 hover:text-red-500">${Icons.Trash}</button>
                         </div>
-                        
                         <div class="flex flex-col items-start mb-4 pr-16 mt-2">
                             <div class="mb-3">
                                 <span class="goal-tag ${tagStyle.cls}">
@@ -663,16 +670,13 @@
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">${plan.content}</h2>
                         </div>
-                        
                         <div class="flex items-baseline gap-2 mb-3">
                             <span class="text-4xl font-black ${isDone ? 'text-green-600' : 'text-indigo-600'}">${currentProgress}</span>
                             <span class="text-xs text-slate-400 font-bold">/ ${plan.target} 字</span>
                         </div>
-                        
                         <div class="progress-track mb-5">
                             <div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div>
                         </div>
-                        
                         ${isDone ? 
                             `<div class="w-full py-3 text-center text-green-700 font-bold text-sm bg-white/60 rounded-xl flex items-center justify-center gap-2">🎉 恭喜达成！</div>` : 
                             `<button onclick="actions.start('${plan.id}')" class="w-full bg-white text-indigo-600 py-3 rounded-xl font-bold shadow-sm border border-indigo-100 flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-indigo-50">${Icons.Play} 开始专注</button>`
@@ -688,7 +692,6 @@
             const goals = state.customGoals.map(g => {
                 const qtyPct = Math.min(100, Math.round((g.currentQty / g.targetQty) * 100));
                 const isQtyDone = g.currentQty >= g.targetQty;
-                
                 return `
                 <div class="bg-white rounded-[20px] p-5 border border-slate-100 mb-4 relative group transition-all hover:shadow-lg shadow-sm">
                     <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -728,8 +731,6 @@
                     </div>
 
                     <div class="flex-1 overflow-y-auto px-4 pt-10 pb-24 space-y-6">
-                        
-                        <!-- Date Navigation -->
                         <div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50">
                             <button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button>
                             <div class="flex flex-col items-center">
@@ -739,7 +740,6 @@
                             <button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button>
                         </div>
 
-                        <!-- 心理能量站 -->
                         <div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden">
                             <div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div>
                             <div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div>
@@ -778,138 +778,21 @@
             `;
         }
 
+        // --- Render Working/Add/Rank/History ---
+        // (保持之前的实现，确保 render 能够调用它们)
         function renderWorking() {
             const plan = state.dailyPlans.find(p => p.id === state.currentSession.planId);
             const goalTitle = plan ? plan.content : '自由写作';
             const net = (parseInt(state.formData.endCount)||state.currentSession.startCount) - state.currentSession.startCount;
-            return `
-            <div class="flex flex-col h-full bg-gray-50 pb-safe overflow-y-auto">
-                <div class="bg-white p-6 pb-8 border-b border-slate-100 shadow-sm mb-4 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-full -mr-12 -mt-12 blur-3xl opacity-60"></div>
-                    <div class="flex justify-between items-start mb-6 relative z-10">
-                        <div class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse-soft border border-indigo-100">
-                            <span class="w-2 h-2 bg-indigo-500 rounded-full"></span> 专注模式
-                        </div>
-                        <button onclick="actions.cancelSession()" class="text-slate-400 hover:text-red-500 bg-slate-50 p-2 rounded-full">${Icons.X}</button>
-                    </div>
-                    <h2 class="text-3xl font-bold text-slate-800 mb-2 relative z-10">${goalTitle}</h2>
-                    <div class="text-slate-500 text-sm mb-6 relative z-10">
-                        开始于 <span class="font-mono font-bold text-indigo-500">${new Date(state.currentSession.start).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm text-slate-400 mb-6 relative z-10 bg-slate-50 p-3 rounded-xl border border-slate-100 inline-flex">
-                        <span>初始字数: ${state.currentSession.startCount}</span>
-                        <button onclick="actions.adjustStart()" class="text-indigo-500 text-xs font-bold hover:underline bg-white px-2 py-1 rounded shadow-sm">修正</button>
-                    </div>
-                    <div class="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-5 border border-indigo-100 relative z-10 text-center shadow-sm">
-                        <div class="text-xs text-indigo-400 font-bold mb-1 uppercase tracking-wider">本次产出</div>
-                        <div class="text-5xl font-black text-indigo-600" id="net-word-display">${net > 0 ? '+' + net : net}</div>
-                    </div>
-                </div>
-                
-                <form onsubmit="actions.end(event)" class="px-4 space-y-4 flex-1 flex flex-col">
-                    <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100">
-                        <label class="text-sm font-bold text-slate-500 mb-3 block text-center">结束字数</label>
-                        <input type="number" name="endCount" required value="${state.formData.endCount||''}" oninput="actions.setFormData('endCount',this.value)" class="text-5xl font-black text-slate-800 w-full text-center outline-none border-b-2 border-transparent focus:border-indigo-100 bg-transparent py-2 placeholder-slate-200" placeholder="${state.currentSession.startCount}">
-                    </div>
-                    
-                    <div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 space-y-4 flex-1">
-                        <div>
-                            <label class="text-sm font-bold text-slate-500 mb-3 block">状态 & 感想</label>
-                            <div class="flex justify-around mb-6">
-                                ${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')"><i data-lucide="${{happy:'smile',neutral:'meh',sad:'frown',tired:'coffee'}[m]}" class="w-10 h-10 mood-icon ${state.formData.mood===m?'selected text-indigo-500':'text-slate-300'}"></i></button>`).join('')}
-                            </div>
-                            <textarea name="reflection" placeholder="写得怎么样？记录一下此刻的心情..." oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm h-32 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea>
-                        </div>
-                    </div>
-                    
-                    <button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 mt-4 active:scale-95 transition-transform">
-                        ${Icons.Check} 完成打卡
-                    </button>
-                </form>
-            </div>`;
+            return `<div class="flex flex-col h-full bg-gray-50 pb-safe overflow-y-auto"><div class="bg-white p-6 pb-8 border-b border-slate-100 shadow-sm mb-4 relative overflow-hidden"><div class="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-full -mr-12 -mt-12 blur-3xl opacity-60"></div><div class="flex justify-between items-start mb-6 relative z-10"><div class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse-soft border border-indigo-100"><span class="w-2 h-2 bg-indigo-500 rounded-full"></span> 专注模式</div><button onclick="actions.cancelSession()" class="text-slate-400 hover:text-red-500 bg-slate-50 p-2 rounded-full">${Icons.X}</button></div><h2 class="text-3xl font-bold text-slate-800 mb-2 relative z-10">${goalTitle}</h2><div class="text-slate-500 text-sm mb-6 relative z-10">开始于 <span class="font-mono font-bold text-indigo-500">${new Date(state.currentSession.start).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div><div class="flex items-center gap-2 text-sm text-slate-400 mb-6 relative z-10 bg-slate-50 p-3 rounded-xl border border-slate-100 inline-flex"><span>初始字数: ${state.currentSession.startCount}</span><button onclick="actions.adjustStart()" class="text-indigo-500 text-xs font-bold hover:underline bg-white px-2 py-1 rounded shadow-sm">修正</button></div><div class="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-5 border border-indigo-100 relative z-10 text-center shadow-sm"><div class="text-xs text-indigo-400 font-bold mb-1 uppercase tracking-wider">本次产出</div><div class="text-5xl font-black text-indigo-600" id="net-word-display">${net > 0 ? '+' + net : net}</div></div></div><form onsubmit="actions.end(event)" class="px-4 space-y-4 flex-1 flex flex-col"><div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100"><label class="text-sm font-bold text-slate-500 mb-3 block text-center">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount||''}" oninput="actions.setFormData('endCount',this.value)" class="text-5xl font-black text-slate-800 w-full text-center outline-none border-b-2 border-transparent focus:border-indigo-100 bg-transparent py-2 placeholder-slate-200" placeholder="${state.currentSession.startCount}"></div><div class="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 space-y-4 flex-1"><div><label class="text-sm font-bold text-slate-500 mb-3 block">状态 & 感想</label><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')"><i data-lucide="${{happy:'smile',neutral:'meh',sad:'frown',tired:'coffee'}[m]}" class="w-10 h-10 mood-icon ${state.formData.mood===m?'selected text-indigo-500':'text-slate-300'}"></i></button>`).join('')}</div><textarea name="reflection" placeholder="写得怎么样？记录一下此刻的心情..." oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm h-32 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 mt-4 active:scale-95 transition-transform">${Icons.Check} 完成打卡</button></form></div>`;
         }
-        
+
         function renderAddEntry() {
             const goalOptions = state.customGoals.map(g => `<option value="${g.id}" ${g.id === state.formData.linkedGoalId ? 'selected' : ''}>${g.name} (上次结束: ${getLastCountForGoal(g.id)})</option>`).join('');
             const net = (parseInt(state.formData.endCount)||state.formData.startCount) - state.formData.startCount;
-            
-            return `
-            <div class="pb-safe h-full overflow-y-auto bg-gray-50">
-                <div class="px-5 pt-8 pb-24">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2>
-                    <form onsubmit="actions.end(event)" class="space-y-5">
-                        <div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50">
-                            <div class="mb-5">
-                                <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label>
-                                <input type="date" name="date" value="${state.formData.date || getTodayStr()}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium">
-                            </div>
-                            <div class="mb-5">
-                                <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label>
-                                <select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">
-                                    ${goalOptions}
-                                </select>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4 mb-5">
-                                <div>
-                                    <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label>
-                                    <div class="flex items-center">
-                                        <button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button>
-                                        <input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none">
-                                        <button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label>
-                                    <input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition">
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl">
-                                <span class="text-sm text-indigo-400 font-bold">本次净增</span>
-                                <span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6">
-                            <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label>
-                                    <button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button>
-                                </div>
-                                <div class="flex justify-around mb-6">
-                                    ${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}
-                                </div>
-                                <textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea>
-                            </div>
-                            
-                            <!-- Slider Section -->
-                            <div>
-                                <div class="flex justify-between items-center mb-3">
-                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label>
-                                    <span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span>
-                                </div>
-                                <div class="px-2 py-2">
-                                    <input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)">
-                                    <div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono">
-                                        <span>0h</span><span>6h</span><span>12h</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label>
-                                <input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300">
-                            </div>
-                        </div>
-                        
-                        <button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                            ${Icons.Check} 提交打卡
-                        </button>
-                    </form>
-                </div>
-            </div>`;
+            return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-24"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
         }
 
-        // --- NEW: Restore missing functions ---
         function renderRank() {
             if(state.loadingLeaderboard) return `<div class="p-10 text-center text-slate-400 flex flex-col items-center gap-2"><div class="spinner"></div><p class="text-xs">榜单刷新中...</p></div>`;
             const list = state.leaderboard.map((u,i)=> {
@@ -917,7 +800,6 @@
                 if(i===0) rankBadge = `<span class="text-xl">🥇</span>`;
                 if(i===1) rankBadge = `<span class="text-xl">🥈</span>`;
                 if(i===2) rankBadge = `<span class="text-xl">🥉</span>`;
-                
                 return `<div class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-[20px] mb-3 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"><div class="w-8 flex justify-center">${rankBadge}</div><img src="${u.avatar}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><div class="bg-indigo-50 px-3 py-1 rounded-full"><span class="font-black text-indigo-600 text-sm">${u.wordCount}</span> <span class="text-xs text-indigo-400">字</span></div></div>`;
             }).join('');
             return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-6 rounded-[24px] shadow-lg mb-6 relative overflow-hidden"><div class="absolute right-0 top-0 text-6xl opacity-20">🏆</div><h2 class="font-bold text-xl mb-1">今日龙虎榜</h2><p class="text-xs opacity-90">看见坚持的力量 · 全网同步</p></div>${list||'<div class="flex flex-col items-center justify-center py-20 opacity-50"><div class="text-4xl mb-2">🍃</div><p class="text-sm">今日还没有人打卡哦</p></div>'}</div>`;
@@ -928,21 +810,14 @@
             return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="flex justify-between items-center mb-6 px-1"><h2 class="font-bold text-xl text-slate-800">历史足迹</h2><span class="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-20">空空如也，去写下第一笔吧！</p>'}</div>`;
         }
 
-        // --- Render Main ---
+        // --- Render ---
         function render() {
             const app = document.getElementById('app');
-            // 安全性检查：确保 app 存在
             if (!app) return;
-            
-            cleanOldPlans(); 
+            cleanOldPlans();
 
-            // 路由控制
-            if (state.view === 'loading') {
-                // 如果还在这里，说明可能出错了，但我们通常不应该render loading，
-                // 因为HTML里默认就是loading。
-                // 如果需要强制刷新 loading 状态，可以在这里做。
-                return;
-            }
+            // 修复：只要 render 被调用，就覆盖 innerHTML，不再判断 state.view === 'loading'
+            // 这样能保证 loading 界面一定会被移除
             
             let htmlContent = '';
             
@@ -961,6 +836,7 @@
                     const sidebar = state.showSidebar ? `<div class="fixed inset-0 bg-black/50 z-40 animate-fade-in" onclick="actions.toggleSidebar()"></div><div class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl p-0 flex flex-col animate-slide-up" style="animation-direction: normal; animation-name: slide-right;"><div class="p-6 border-b border-slate-100 bg-slate-50"><div class="flex items-center gap-3 mb-4"><img src="${state.user.avatar}" class="w-14 h-14 rounded-full border-2 border-white shadow-sm"><div><h3 class="font-bold text-slate-800">${state.user.username}</h3><button onclick="actions.editProfile()" class="text-xs text-indigo-500">编辑资料</button></div></div><div class="bg-white p-3 rounded-lg border border-slate-200"><div class="text-xs text-slate-400 mb-1">累计产出</div><div class="text-sm font-bold text-slate-800">${state.entries.reduce((a,b)=>a+b.dailyCount,0).toLocaleString()} 字</div></div></div><div class="p-2 space-y-1"><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl"><span class="text-indigo-500">${Icons.Switch}</span> 切换账号</button><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl"><span class="text-red-500">${Icons.LogOut}</span> 退出登录</button></div></div>` : '';
 
                     let modals = '';
+                    // ... (Modal logic remains same but compacted for single file safety)
                     if (state.showPlanModal) {
                         const isEdit = !!state.editingPlanId;
                         const options = state.customGoals.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
@@ -987,41 +863,46 @@
             }
             
             app.innerHTML = htmlContent;
-            
-            // 重新初始化图标
-            if (window.lucide) {
-                lucide.createIcons();
-            }
+            if (window.lucide) lucide.createIcons();
         }
         
-        // --- Init Logic ---
+        // --- 初始化入口 ---
         function initApp() {
             try {
-                // 1. 尝试从 localStorage 获取当前用户
-                const savedUser = localStorage.getItem('phd_current_user');
+                const savedUser = Storage.get('phd_current_user', null);
                 
                 if (savedUser) {
-                    // 如果有用户，尝试加载用户数据
                     loadLocalUser(savedUser);
                 } else {
-                    // 如果没有用户，显示登录界面
                     state.view = 'login';
                     render();
                 }
             } catch (error) {
                 console.error("Init failed:", error);
-                // 发生任何严重错误，至少回退到登录页，不让用户卡在 loading
+                // 终极 Fallback：如果一切都失败了，强制去登录页，不再显示 loading
                 state.view = 'login';
                 render();
             }
         }
 
-        // 确保 DOM 加载完成后执行
+        // --- 启动逻辑 ---
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initApp);
         } else {
+            // 如果脚本执行时 DOM 已经就绪（例如 defer 脚本），直接执行
             initApp();
         }
+        
+        // --- 双重保险 ---
+        // 如果 1.5 秒后页面还在 loading 状态（说明 initApp 可能挂了），强制显示登录页
+        setTimeout(() => {
+            const loadingEl = document.getElementById('loading-screen');
+            if (loadingEl && document.body.contains(loadingEl)) {
+                console.warn("Forcing login view due to timeout");
+                state.view = 'login';
+                render();
+            }
+        }, 1500);
 
     </script>
 </body>
