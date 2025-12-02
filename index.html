@@ -8,13 +8,18 @@
     <!-- iOS Web App 全屏模式支持 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="PhD写助手">
+    
+    <!-- 修改点 1：桌面图标下方的名称改为 "PhD写作助手" -->
+    <meta name="apple-mobile-web-app-title" content="PhD写作助手">
 
     <title>博士写作助手</title>
     
-    <!-- 修复 1：文件名后缀修正为 .jpg，并指定正确的 type -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icon-180.jpg">
-    <link rel="icon" type="image/jpeg" sizes="192x192" href="icon-192.jpg">
+    <!-- 修改点 2：增加 ?v=2 强制刷新缓存，确保 iOS 重新读取图片 -->
+    <!-- 注意：请确保 GitHub 上传的文件名真的是 icon-180.jpg (小写) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-180.jpg?v=2">
+    <link rel="icon" type="image/jpeg" sizes="192x192" href="icon-192.jpg?v=2">
+    <!-- 增加一个通用图标引用作为保底 -->
+    <link rel="shortcut icon" href="icon-192.jpg?v=2">
 
     <!-- 主题色 -->
     <meta name="theme-color" content="#4F46E5">
