@@ -36,7 +36,7 @@
         /* Logo Gradient */
         .logo-gradient { background: linear-gradient(135deg, #818CF8 0%, #4F46E5 100%); }
 
-        /* Goal Tag Styles (New) */
+        /* Goal Tag Styles */
         .goal-tag {
             display: inline-flex;
             align-items: center;
@@ -119,26 +119,18 @@
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
     <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
-        <!-- 初始加载画面，JS加载后会被替换 -->
-        <div class="flex flex-col items-center justify-center h-screen text-slate-400 gap-3">
+        <!-- 初始加载画面 -->
+        <div id="loading-screen" class="flex flex-col items-center justify-center h-screen text-slate-400 gap-3">
             <div class="spinner"></div>
             <p class="text-xs">正在整理书桌...</p>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let currentUserUid = null;
-
-        // --- Data ---
+    <!-- 移除 type="module" 以避免模块加载问题，使用常规 script 标签 -->
+    <script>
+        // --- 核心状态 ---
+        // 移除 Firebase 依赖，纯本地运行
+        
         const psychQuotes = [
             "今天写的每一个字，都会在未来为你发光 ✨",
             "不必一下子写完一章，只要今天比昨天多一点点就好。",
@@ -172,6 +164,14 @@
             sad: ["今天有点艰难，但至少我坚持下来了。", "心情有点低落，或许是该换个思路了。"],
             tired: ["脑细胞已耗尽，急需充电！🔋", "实在是太困了，先苟住，明天再战！💤"]
         };
+
+        // 模拟排行榜数据（本地版专用）
+        const MOCK_LEADERBOARD = [
+            { username: "学术卷王", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Felix", wordCount: 3200 },
+            { username: "文献杀手", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka", wordCount: 2100 },
+            { username: "深夜战神", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Milo", wordCount: 1800 },
+            { username: "早起鸟", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Bella", wordCount: 500 }
+        ];
 
         const state = {
             view: 'loading',
@@ -216,32 +216,52 @@
         };
 
         // --- Local User System ---
-        function getUsersDirectory() { return JSON.parse(localStorage.getItem('phd_users_directory') || '{}'); }
+        function getSafeJSON(key, defaultVal) {
+            try {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultVal;
+            } catch (e) {
+                console.error(`Error parsing ${key}`, e);
+                return defaultVal;
+            }
+        }
+
+        function getUsersDirectory() { return getSafeJSON('phd_users_directory', {}); }
         function saveUsersDirectory(dir) { localStorage.setItem('phd_users_directory', JSON.stringify(dir)); }
 
         function loadLocalUser(username) {
-            const dir = getUsersDirectory();
-            if (!dir[username]) {
-                dir[username] = { password: 'any', avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
-                saveUsersDirectory(dir);
-                localStorage.setItem(`phd_data_${username}`, JSON.stringify({ entries: [], customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }] }));
-            }
+            try {
+                const dir = getUsersDirectory();
+                // 自动注册
+                if (!dir[username]) {
+                    dir[username] = { password: 'any', avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
+                    saveUsersDirectory(dir);
+                    localStorage.setItem(`phd_data_${username}`, JSON.stringify({ entries: [], customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }] }));
+                }
 
-            state.user = { username: username, avatar: dir[username].avatar };
-            const data = JSON.parse(localStorage.getItem(`phd_data_${username}`) || '{}');
-            state.entries = data.entries || [];
-            state.customGoals = data.customGoals || [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
-            state.dailyPlans = data.dailyPlans || [];
-            state.totalWordGoal = data.totalWordGoal || 100000;
-            state.graduationDate = data.graduationDate || '';
-            state.currentSession = JSON.parse(localStorage.getItem(`phd_session_${username}`) || 'null');
-            state.entryDrafts = {};
-            localStorage.setItem('phd_current_user', username);
-            state.view = 'app';
-            
-            state.dailyQuote = psychQuotes[Math.floor(Math.random() * psychQuotes.length)];
-            
-            render();
+                state.user = { username: username, avatar: dir[username].avatar };
+                const data = getSafeJSON(`phd_data_${username}`, {});
+                
+                state.entries = data.entries || [];
+                state.customGoals = data.customGoals || [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
+                state.dailyPlans = data.dailyPlans || [];
+                state.totalWordGoal = data.totalWordGoal || 100000;
+                state.graduationDate = data.graduationDate || '';
+                
+                state.currentSession = getSafeJSON(`phd_session_${username}`, null);
+                state.entryDrafts = {};
+                
+                localStorage.setItem('phd_current_user', username);
+                state.view = 'app';
+                state.dailyQuote = psychQuotes[Math.floor(Math.random() * psychQuotes.length)];
+                
+                render();
+            } catch(e) {
+                console.error("Load user failed", e);
+                alert("加载用户数据出错，请尝试清除缓存");
+                state.view = 'login';
+                render();
+            }
         }
 
         function saveUserData() {
@@ -252,32 +272,35 @@
             else localStorage.removeItem(`phd_session_${state.user.username}`);
         }
 
-        // --- Cloud Sync ---
+        // --- Mock Cloud Sync (No Backend) ---
         async function syncLeaderboard() {
-            if (!currentUserUid || !state.user) return;
-            const today = getTodayStr();
-            const words = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'daily_rankings', `${today}_${state.user.username}`), {
-                    username: state.user.username, avatar: state.user.avatar, wordCount: words, date: today
-                });
-            } catch (e) { console.warn("Sync failed", e); }
+            // No-op in static version
+            console.log("Synced to local (simulated)");
         }
 
         async function fetchLeaderboard() {
-            state.loadingLeaderboard = true; render();
-            const today = getTodayStr();
-            try {
-                const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'daily_rankings'));
-                const list = [];
-                snap.forEach(d => { if (d.data().date === today) list.push(d.data()); });
-                state.leaderboard = list.sort((a,b) => b.wordCount - a.wordCount);
-            } catch (e) { 
-                if(state.user) {
-                    const localWords = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-                    state.leaderboard = [{username: state.user.username, avatar: state.user.avatar, wordCount: localWords}];
+            state.loadingLeaderboard = true; 
+            render();
+            
+            // 模拟延迟
+            setTimeout(() => {
+                // 混合 Mock 数据和当前用户数据
+                let list = [...MOCK_LEADERBOARD];
+                if (state.user) {
+                    const today = getTodayStr();
+                    const myWords = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
+                    // 如果已存在则更新，不存在则添加
+                    const existingIdx = list.findIndex(u => u.username === state.user.username);
+                    if (existingIdx >= 0) {
+                        list[existingIdx].wordCount = myWords;
+                    } else {
+                        list.push({ username: state.user.username, avatar: state.user.avatar, wordCount: myWords });
+                    }
                 }
-            } finally { state.loadingLeaderboard = false; render(); }
+                state.leaderboard = list.sort((a,b) => b.wordCount - a.wordCount);
+                state.loadingLeaderboard = false; 
+                render();
+            }, 600);
         }
 
         // --- Helpers ---
@@ -322,7 +345,6 @@
             }
         };
 
-        // --- Helper for Goal Tag Style ---
         const getGoalTagStyle = (name) => {
             if (!name) return { emoji: '🌱', cls: 'tag-green' };
             const n = name.toLowerCase();
@@ -330,7 +352,7 @@
             if (n.includes('阅读') || n.includes('文献') || n.includes('书')) return { emoji: '📖', cls: 'tag-blue' };
             if (n.includes('数据') || n.includes('实验') || n.includes('分析')) return { emoji: '💡', cls: 'tag-cyan' };
             if (n.includes('思考') || n.includes('想') || n.includes('计划')) return { emoji: '🌱', cls: 'tag-green' };
-            return { emoji: '📌', cls: 'tag-orange' }; // Default
+            return { emoji: '📌', cls: 'tag-orange' }; 
         };
 
         // --- Actions ---
@@ -622,10 +644,7 @@
                     const goal = state.customGoals.find(g => g.id === plan.linkedGoalId);
                     const goalName = goal ? goal.name : '自由写作';
                     
-                    // --- NEW: Goal Tag Logic ---
                     const tagStyle = getGoalTagStyle(goalName);
-                    
-                    // Card Styling Update
                     const bgClass = isDone ? 'card-gradient-done border-green-200' : 'card-gradient-1 border-white';
                     
                     return `
@@ -637,13 +656,11 @@
                         </div>
                         
                         <div class="flex flex-col items-start mb-4 pr-16 mt-2">
-                            <!-- New Goal Tag Replacement -->
                             <div class="mb-3">
                                 <span class="goal-tag ${tagStyle.cls}">
                                     <span class="text-sm">${tagStyle.emoji}</span> ${goalName}
                                 </span>
                             </div>
-                            
                             <h2 class="text-lg font-bold text-slate-800">${plan.content}</h2>
                         </div>
                         
@@ -652,7 +669,6 @@
                             <span class="text-xs text-slate-400 font-bold">/ ${plan.target} 字</span>
                         </div>
                         
-                        <!-- Jelly Progress Bar -->
                         <div class="progress-track mb-5">
                             <div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div>
                         </div>
@@ -893,19 +909,48 @@
             </div>`;
         }
 
+        // --- NEW: Restore missing functions ---
+        function renderRank() {
+            if(state.loadingLeaderboard) return `<div class="p-10 text-center text-slate-400 flex flex-col items-center gap-2"><div class="spinner"></div><p class="text-xs">榜单刷新中...</p></div>`;
+            const list = state.leaderboard.map((u,i)=> {
+                let rankBadge = `<span class="font-bold w-6 text-center text-slate-400">${i+1}</span>`;
+                if(i===0) rankBadge = `<span class="text-xl">🥇</span>`;
+                if(i===1) rankBadge = `<span class="text-xl">🥈</span>`;
+                if(i===2) rankBadge = `<span class="text-xl">🥉</span>`;
+                
+                return `<div class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-[20px] mb-3 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"><div class="w-8 flex justify-center">${rankBadge}</div><img src="${u.avatar}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><div class="bg-indigo-50 px-3 py-1 rounded-full"><span class="font-black text-indigo-600 text-sm">${u.wordCount}</span> <span class="text-xs text-indigo-400">字</span></div></div>`;
+            }).join('');
+            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-6 rounded-[24px] shadow-lg mb-6 relative overflow-hidden"><div class="absolute right-0 top-0 text-6xl opacity-20">🏆</div><h2 class="font-bold text-xl mb-1">今日龙虎榜</h2><p class="text-xs opacity-90">看见坚持的力量 · 全网同步</p></div>${list||'<div class="flex flex-col items-center justify-center py-20 opacity-50"><div class="text-4xl mb-2">🍃</div><p class="text-sm">今日还没有人打卡哦</p></div>'}</div>`;
+        }
+
+        function renderHistory() {
+            const list = state.entries.slice().reverse().map(e=>`<div class="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm mb-4 relative overflow-hidden"><div class="absolute left-0 top-0 bottom-0 w-2 bg-indigo-500"></div><div class="pl-3"><div class="flex justify-between mb-2"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">${e.date}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">+${e.dailyCount}字</span></div><div class="text-base font-bold text-slate-800 mb-2">${e.linkedPlanContent || e.linkedGoalName || '自由写作'}</div><div class="text-sm text-slate-500 bg-slate-50 p-3 rounded-xl italic">"${e.reflection||'无感想'}"</div>${e.duration ? `<div class="mt-2 text-xs text-slate-400 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> 投入时长: ${e.duration}</div>` : ''}</div></div>`).join('');
+            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="flex justify-between items-center mb-6 px-1"><h2 class="font-bold text-xl text-slate-800">历史足迹</h2><span class="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-20">空空如也，去写下第一笔吧！</p>'}</div>`;
+        }
+
         // --- Render Main ---
         function render() {
             const app = document.getElementById('app');
-            app.innerHTML = '';
+            // 安全性检查：确保 app 存在
+            if (!app) return;
+            
             cleanOldPlans(); 
 
-            if (state.view === 'loading') return; 
+            // 路由控制
+            if (state.view === 'loading') {
+                // 如果还在这里，说明可能出错了，但我们通常不应该render loading，
+                // 因为HTML里默认就是loading。
+                // 如果需要强制刷新 loading 状态，可以在这里做。
+                return;
+            }
+            
+            let htmlContent = '';
             
             if (state.view === 'login') {
-                app.innerHTML = renderLogin();
+                htmlContent = renderLogin();
             } else if (state.view === 'app') {
                 if (state.currentSession && state.currentSession.isActive) {
-                    app.innerHTML = renderWorking();
+                    htmlContent = renderWorking();
                 } else {
                     let content = '';
                     if (state.activeTab === 'dashboard') content = renderDashboard();
@@ -937,38 +982,46 @@
 
                     const nav = `<nav class="bg-white border-t border-slate-100 flex justify-around items-center h-16 shrink-0 z-20 pb-safe"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('rank')" class="flex flex-col items-center gap-1 ${state.activeTab==='rank'?'text-indigo-600':'text-slate-400'}">${Icons.Medal}<span class="text-[10px]">榜单</span></button></nav>`;
 
-                    app.innerHTML = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600 hover:bg-slate-50 p-1 rounded-lg">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${AppLogo("w-6 h-6")}</div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
+                    htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600 hover:bg-slate-50 p-1 rounded-lg">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${AppLogo("w-6 h-6")}</div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
                 }
             }
-            lucide.createIcons();
+            
+            app.innerHTML = htmlContent;
+            
+            // 重新初始化图标
+            if (window.lucide) {
+                lucide.createIcons();
+            }
         }
         
-        function renderRank() {
-            if(state.loadingLeaderboard) return `<div class="p-10 text-center text-slate-400 flex flex-col items-center gap-2"><div class="spinner"></div><p class="text-xs">榜单刷新中...</p></div>`;
-            const list = state.leaderboard.map((u,i)=> {
-                let rankBadge = `<span class="font-bold w-6 text-center text-slate-400">${i+1}</span>`;
-                if(i===0) rankBadge = `<span class="text-xl">🥇</span>`;
-                if(i===1) rankBadge = `<span class="text-xl">🥈</span>`;
-                if(i===2) rankBadge = `<span class="text-xl">🥉</span>`;
+        // --- Init Logic ---
+        function initApp() {
+            try {
+                // 1. 尝试从 localStorage 获取当前用户
+                const savedUser = localStorage.getItem('phd_current_user');
                 
-                return `<div class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-[20px] mb-3 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"><div class="w-8 flex justify-center">${rankBadge}</div><img src="${u.avatar}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><div class="bg-indigo-50 px-3 py-1 rounded-full"><span class="font-black text-indigo-600 text-sm">${u.wordCount}</span> <span class="text-xs text-indigo-400">字</span></div></div>`;
-            }).join('');
-            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-6 rounded-[24px] shadow-lg mb-6 relative overflow-hidden"><div class="absolute right-0 top-0 text-6xl opacity-20">🏆</div><h2 class="font-bold text-xl mb-1">今日龙虎榜</h2><p class="text-xs opacity-90">看见坚持的力量 · 全网同步</p></div>${list||'<div class="flex flex-col items-center justify-center py-20 opacity-50"><div class="text-4xl mb-2">🍃</div><p class="text-sm">今日还没有人打卡哦</p></div>'}</div>`;
-        }
-        function renderHistory() {
-            const list = state.entries.slice().reverse().map(e=>`<div class="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm mb-4 relative overflow-hidden"><div class="absolute left-0 top-0 bottom-0 w-2 bg-indigo-500"></div><div class="pl-3"><div class="flex justify-between mb-2"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">${e.date}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">+${e.dailyCount}字</span></div><div class="text-base font-bold text-slate-800 mb-2">${e.linkedPlanContent || e.linkedGoalName || '自由写作'}</div><div class="text-sm text-slate-500 bg-slate-50 p-3 rounded-xl italic">"${e.reflection||'无感想'}"</div>${e.duration ? `<div class="mt-2 text-xs text-slate-400 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> 投入时长: ${e.duration}</div>` : ''}</div></div>`).join('');
-            return `<div class="p-4 bg-gray-50 h-full overflow-y-auto"><div class="flex justify-between items-center mb-6 px-1"><h2 class="font-bold text-xl text-slate-800">历史足迹</h2><span class="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-20">空空如也，去写下第一笔吧！</p>'}</div>`;
+                if (savedUser) {
+                    // 如果有用户，尝试加载用户数据
+                    loadLocalUser(savedUser);
+                } else {
+                    // 如果没有用户，显示登录界面
+                    state.view = 'login';
+                    render();
+                }
+            } catch (error) {
+                console.error("Init failed:", error);
+                // 发生任何严重错误，至少回退到登录页，不让用户卡在 loading
+                state.view = 'login';
+                render();
+            }
         }
 
-        async function main() {
-            state.view = 'login';
-            render();
-            try { await signInAnonymously(auth); } catch(e){} 
-            onAuthStateChanged(auth, (user) => {
-                if(user) { currentUserUid = user.uid; }
-            });
+        // 确保 DOM 加载完成后执行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
         }
-        main();
 
     </script>
 </body>
