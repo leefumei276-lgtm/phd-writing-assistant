@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>博士写作助手 - 暖心日记版</title>
+    <!-- 添加桌面图标支持 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjogI2VlZjJmZjsgYm9yZGVyLXJhZGl1czDogMjRweDsiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlZWYyZmYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuMzVlbSI+8J+OhTwvdGV4dD48L3N2Zz4=">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -569,8 +573,19 @@
             delGoal: (id) => { if(confirm("删除此目标？")) { state.customGoals = state.customGoals.filter(x=>x.id!==id); saveUserData(); render(); } },
             addQty: (id) => { const g = state.customGoals.find(x=>x.id===id); if(g) { g.currentQty++; saveUserData(); render(); } },
             
-            setGradDate: (d) => { state.graduationDate = d; saveUserData(); render(); },
+            setGradDate: (d) => { /* 不再立即保存，改用 SaveGradSettings */ },
             toggleGrad: () => { state.showGradSettings = !state.showGradSettings; render(); },
+            // 新增: 专门用于保存日期的函数，避免 onchange 导致的重绘冲突
+            saveGradSettings: () => {
+                const inputEl = document.getElementById('grad-date-input');
+                if(inputEl && inputEl.value) {
+                    state.graduationDate = inputEl.value;
+                }
+                state.showGradSettings = false;
+                saveUserData();
+                render();
+            },
+            
             toggleGoalModal: () => { state.showGoalModal = !state.showGoalModal; render(); },
             setTotalGoal: () => { const v = prompt("目标字数:", state.totalWordGoal); if(v) { state.totalWordGoal = Number(v); saveUserData(); render(); } },
             
@@ -717,6 +732,7 @@
                 </div>`;
             }).join('');
 
+            // 更新了日期设置的DOM结构：Input去除onchange，Button绑定saveGradSettings
             return `
                 <div class="flex flex-col h-full bg-gray-50 overflow-hidden">
                     <div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative">
@@ -727,7 +743,7 @@
                             </div>
                             <button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button>
                         </div>
-                        ${state.showGradSettings ? `<div class="absolute inset-x-4 -bottom-16 bg-white shadow-xl p-4 rounded-xl flex items-center z-30 animate-scale-in border border-slate-100"><input type="date" onchange="actions.setGradDate(this.value)" class="bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2 flex-1 outline-none"><button onclick="actions.toggleGrad()" class="ml-2 bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg">确定</button></div>` : ''}
+                        ${state.showGradSettings ? `<div class="absolute inset-x-4 -bottom-16 bg-white shadow-xl p-4 rounded-xl flex items-center z-30 animate-scale-in border border-slate-100"><input type="date" id="grad-date-input" value="${state.graduationDate}" class="bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2 flex-1 outline-none"><button onclick="actions.saveGradSettings()" class="ml-2 bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg">确定</button></div>` : ''}
                     </div>
 
                     <div class="flex-1 overflow-y-auto px-4 pt-10 pb-24 space-y-6">
