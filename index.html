@@ -12,9 +12,13 @@
 
     <title>PhD Flow</title>
     
-    <!-- 图标支持 -->
+    <!-- 图标支持 (修正：强制使用 ./icon-180.png 和 ./icon-192.png) -->
+    <!-- iOS 主屏幕图标 -->
     <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
+
+    <!-- 浏览器 / PWA 图标 -->
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="icon" type="image/png" sizes="180x180" href="./icon-180.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./icon-192.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./icon-192.png">
     <link rel="shortcut icon" href="./icon-192.png">
@@ -23,7 +27,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 启动加载层样式 (优化版) --- */
+        /* --- 启动加载层样式 --- */
         #app-loader {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -140,7 +144,7 @@
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 1. 全屏加载层 (需求1) -->
+    <!-- 1. 全屏加载层 -->
     <div id="app-loader">
         <div class="loader-spinner"></div>
         <div class="text-center text-slate-500 text-sm">
@@ -164,9 +168,9 @@
     <!-- 核心逻辑 -->
     <script>
         // --- 核心配置 ---
-        const MAX_FUTURE_YEARS = 20; // 允许未来 20 年的日期选择
+        const MAX_FUTURE_YEARS = 20; // 修正：允许未来 20 年的日期选择
 
-        // --- 心理能量站文案列表 (需求3 & 4) ---
+        // --- 心理能量站文案列表 ---
         const psychQuotes = [
             "今天写的每一个字，都会在未来为你发光 ✨",
             "不必一下子写完一章，只要今天比昨天多一点点就好。",
@@ -513,7 +517,7 @@
         // --- 业务辅助函数 ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         
-        // 需求2：修改最大日期为未来 20 年
+        // 修正：最大日期计算逻辑（未来20年）
         const getMaxDate = () => {
             const today = new Date();
             const max = new Date(today);
@@ -829,13 +833,13 @@
             // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // 修改：允许向未来翻页 (需求2)
+            // 修正：允许向未来翻页 (修正日期范围逻辑)
             changeDate: (days) => { 
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
                 const newDateStr = current.toISOString().split('T')[0];
                 
-                // 检查是否超过最大日期
+                // 修正：检查是否超过最大日期，而不是今天
                 const maxDate = getMaxDate();
                 if (days > 0 && current > maxDate) return;
 
@@ -1288,7 +1292,6 @@
             const dayPlans = state.dailyPlans.filter(p => p.date === state.viewDate);
             
             // 需求2：移除 maxDate 限制，允许向未来切换
-            // 仍然保留 getMaxDate() 函数可能用于其他逻辑，但不再用于限制翻页
             
             let plansHtml = dayPlans.length > 0 ? dayPlans.map(plan => {
                 const currentProgress = getPlanProgress(plan.id, state.viewDate);
@@ -1306,14 +1309,16 @@
                 return `<div class="bg-white rounded-[20px] p-5 border border-slate-100 mb-4 relative group transition-all hover:shadow-lg shadow-sm"><div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="actions.openEditGoal('${g.id}')" class="text-slate-300 hover:text-indigo-500"><i data-lucide="pencil" class="w-3 h-3"></i></button><button onclick="actions.delGoal('${g.id}')" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div><div class="flex justify-between items-center mb-4"><div class="flex items-center gap-2"><span class="font-bold text-lg text-slate-800">${g.name}</span>${isQtyDone ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full border border-yellow-200 font-bold">已达成</span>' : ''}</div><div class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded font-medium">目标: ${g.targetQty} ${g.unit}</div></div>${renderProgressBar(g.accumulatedWords, g.targetWords, "字数进度")}<div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-50"><span class="text-xs font-bold text-slate-400">数量进度</span><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-yellow-400 rounded-full" style="width: ${qtyPct}%"></div></div><div class="text-xs font-mono text-slate-500 w-12 text-right">${g.currentQty}/${g.targetQty}</div><button onclick="actions.addQty('${g.id}')" class="w-8 h-8 bg-green-50 text-green-600 rounded-full flex items-center justify-center font-bold text-xs hover:bg-green-100 transition-colors shadow-sm border border-green-100">+1</button></div></div>`;
             }).join('');
 
-            // 需求1：更新倒计时设置弹窗文案与样式
+            // 修正：日期选择器添加 max 属性
+            const maxDateStr = getMaxDate().toISOString().split('T')[0];
+
             return `<div class="flex flex-col h-full bg-gray-50 overflow-hidden"><div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative"><div class="flex justify-between items-center"><div><div class="text-xs text-indigo-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">🎓 ${state.globalGoalType}倒计时</div><div class="text-2xl font-bold tracking-tight">${days !== null ? `还有 <span class="text-yellow-400 font-black text-3xl mx-1">${days}</span> 天` : '点击设置'}</div></div><button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button></div>
             
             ${state.showGradSettings ? `<div class="absolute inset-x-4 top-20 bg-white shadow-xl p-5 rounded-2xl z-30 animate-scale-in border border-slate-100 flex flex-col gap-4">
                 <h3 class="text-lg font-bold text-slate-800 border-b border-slate-50 pb-2">设置倒计时目标</h3>
                 <div>
                     <label class="text-[13px] font-bold text-slate-700 mb-1 block">倒计时日期</label>
-                    <input type="date" id="grad-date-input" value="${state.graduationDate}" class="w-full bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-medium">
+                    <input type="date" id="grad-date-input" value="${state.graduationDate}" max="${maxDateStr}" class="w-full bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2.5 outline-none font-medium">
                 </div>
                 <div class="pt-2">
                     <label class="text-[13px] font-bold text-indigo-600 mb-3 block">目标信息</label>
@@ -1333,7 +1338,6 @@
             
             </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6"><div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button><div class="flex flex-col items-center cursor-pointer group" onclick="actions.goToToday()"><span class="text-lg font-bold text-slate-800">${dateStr}</span>${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 回到今天</span>`}</div><button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button></div><div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4>
             
-            <!-- 需求3：使用 state.dailyQuote 动态展示 -->
             <p id="daily-quote-display" class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p>
             
             </div></div><div><h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider px-1 flex items-center gap-2"><div class="w-1 h-4 bg-indigo-400 rounded-full"></div> ${isToday?'今日':weekStr}专注</h3>${plansHtml}<button onclick="actions.openAddPlan()" class="w-full bg-white border-2 border-dashed border-indigo-100 rounded-[24px] p-4 text-indigo-400 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors mt-6">${Icons.Plus} 添加${isToday?'今日':'该日'}专注</button></div>
@@ -1366,7 +1370,10 @@
         function renderAddEntry() {
             const goalOptions = state.customGoals.map(g => `<option value="${g.id}" ${g.id === state.formData.linkedGoalId ? 'selected' : ''}>${g.name} (上次结束: ${getLastCountForGoal(g.id)})</option>`).join('');
             const net = (parseInt(state.formData.endCount)||state.formData.startCount) - state.formData.startCount;
-            return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-32"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
+            // 修正：日期选择器添加 max 属性
+            const maxDateStr = getMaxDate().toISOString().split('T')[0];
+
+            return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-32"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" max="${maxDateStr}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
         }
 
         function renderRank() {
@@ -1607,11 +1614,11 @@
                     // 修改底部导航栏，只有三个按钮
                     const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('articles')" class="flex flex-col items-center gap-1 ${state.activeTab==='articles'?'text-indigo-600':'text-slate-400'}">${Icons.File}<span class="text-[10px]">文章</span></button></nav>`;
 
-                    // 修改头部 (需求3: 替换 Logo 为图片)
+                    // 修正：App logo 使用 ./icon-180.png
                     htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30">
                         <div class="flex items-center gap-3">
                             <button onclick="actions.toggleSidebar()" class="active:scale-95 transition-transform flex items-center" title="菜单">
-                                <img src="./icon-192.png" alt="PhD Flow" class="w-10 h-10 rounded-2xl shadow-md border border-slate-100">
+                                <img src="./icon-180.png" alt="PhD Flow" class="w-10 h-10 rounded-2xl shadow-md border border-slate-100">
                             </button>
                             <span class="font-bold text-lg text-slate-800">PhD Flow</span>
                         </div>
@@ -1625,7 +1632,7 @@
             app.innerHTML = htmlContent;
             if (window.lucide) lucide.createIcons();
 
-            // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它 (需求4)
+            // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它
             const loadingScreen = document.getElementById('app-loader');
             if (loadingScreen && state.view !== 'loading') {
                 loadingScreen.classList.add('fade-out');
