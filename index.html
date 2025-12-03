@@ -12,13 +12,9 @@
 
     <title>PhD Flow</title>
     
-    <!-- 图标支持 (修正：强制使用 ./icon-180.png 和 ./icon-192.png) -->
-    <!-- iOS 主屏幕图标 -->
+    <!-- 图标支持 -->
     <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
-
-    <!-- 浏览器 / PWA 图标 -->
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
-    <link rel="icon" type="image/png" sizes="180x180" href="./icon-180.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./icon-192.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./icon-192.png">
     <link rel="shortcut icon" href="./icon-192.png">
@@ -27,44 +23,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 启动加载层样式 --- */
-        #app-loader {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #f9fafb; /* bg-slate-50 */
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.6s ease-out, visibility 0.6s;
-        }
-        
-        #app-loader.fade-out {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        /* 简单的脉冲动画 */
-        .loading-pulse {
-            animation: pulse-text 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse-text {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        /* 小小的旋转圈 */
-        .loader-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid rgba(99, 102, 241, 0.1);
-            border-top-color: #6366F1;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-        }
+        /* --- 移除旧的 splash 样式，使用内联样式控制加载层 --- */
 
         /* --- 原有动画定义 --- */
         @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -144,13 +103,19 @@
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 1. 全屏加载层 -->
-    <div id="app-loader">
-        <div class="loader-spinner"></div>
-        <div class="text-center text-slate-500 text-sm">
-            <div class="mb-2 loading-pulse font-medium text-slate-600 text-lg">正在为你布置写作小书桌...</div>
-            <div class="text-xs opacity-80">请稍等片刻，灵感马上就来</div>
-        </div>
+    <!-- 1. 简易加载层 (Bug 1: 解决白屏问题) -->
+    <div id="app-loading" style="
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+        color: #4b5563;
+        font-size: 16px;
+        z-index: 9999;
+    ">
+        正在为你准备 PhD Flow，马上就好…
     </div>
 
     <!-- 2. 应用主容器：初始为空，等待 JS 填充 -->
@@ -167,8 +132,23 @@
 
     <!-- 核心逻辑 -->
     <script>
-        // --- 核心配置 ---
-        const MAX_FUTURE_YEARS = 20; // 修正：允许未来 20 年的日期选择
+        // --- 核心配置 (Bug 2: 允许未来 20 年) ---
+        const TODAY_OBJ = new Date();
+        const MAX_FUTURE_YEARS = 20;
+        const MAX_FUTURE_DATE = new Date(
+            TODAY_OBJ.getFullYear() + MAX_FUTURE_YEARS,
+            TODAY_OBJ.getMonth(),
+            TODAY_OBJ.getDate()
+        );
+
+        function formatDateToInput(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        const MAX_FUTURE_DATE_STR = formatDateToInput(MAX_FUTURE_DATE);
 
         // --- 心理能量站文案列表 ---
         const psychQuotes = [
@@ -517,14 +497,6 @@
         // --- 业务辅助函数 ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         
-        // 修正：最大日期计算逻辑（未来20年）
-        const getMaxDate = () => {
-            const today = new Date();
-            const max = new Date(today);
-            max.setFullYear(today.getFullYear() + MAX_FUTURE_YEARS);
-            return max;
-        };
-        
         const calcStats = (targetDate) => {
             const total = state.entries.reduce((acc, e) => acc + e.dailyCount, 0); 
             const today = state.entries.reduce((acc, e) => e.date === targetDate ? acc + e.dailyCount : acc, 0);
@@ -624,7 +596,7 @@
             }
         };
 
-        // --- 心理能量站逻辑 (需求3) ---
+        // --- 心理能量站逻辑 ---
         function pickEnergyQuote() {
             let nextIndex = 0;
             const lastIndex = Storage.get('energy_last_index', -1);
@@ -833,15 +805,14 @@
             // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // 修正：允许向未来翻页 (修正日期范围逻辑)
+            // 修正：允许向未来翻页 (Bug 2: 修正日期范围逻辑)
             changeDate: (days) => { 
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
                 const newDateStr = current.toISOString().split('T')[0];
                 
-                // 修正：检查是否超过最大日期，而不是今天
-                const maxDate = getMaxDate();
-                if (days > 0 && current > maxDate) return;
+                // 修正：只要不超过 MAX_FUTURE_DATE 就允许 (Bug 2 Fix)
+                if (days > 0 && current > MAX_FUTURE_DATE) return;
 
                 state.viewDate = newDateStr; 
                 render(); 
@@ -1310,7 +1281,7 @@
             }).join('');
 
             // 修正：日期选择器添加 max 属性
-            const maxDateStr = getMaxDate().toISOString().split('T')[0];
+            const maxDateStr = MAX_FUTURE_DATE_STR;
 
             return `<div class="flex flex-col h-full bg-gray-50 overflow-hidden"><div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative"><div class="flex justify-between items-center"><div><div class="text-xs text-indigo-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">🎓 ${state.globalGoalType}倒计时</div><div class="text-2xl font-bold tracking-tight">${days !== null ? `还有 <span class="text-yellow-400 font-black text-3xl mx-1">${days}</span> 天` : '点击设置'}</div></div><button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button></div>
             
@@ -1371,7 +1342,7 @@
             const goalOptions = state.customGoals.map(g => `<option value="${g.id}" ${g.id === state.formData.linkedGoalId ? 'selected' : ''}>${g.name} (上次结束: ${getLastCountForGoal(g.id)})</option>`).join('');
             const net = (parseInt(state.formData.endCount)||state.formData.startCount) - state.formData.startCount;
             // 修正：日期选择器添加 max 属性
-            const maxDateStr = getMaxDate().toISOString().split('T')[0];
+            const maxDateStr = MAX_FUTURE_DATE_STR;
 
             return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-32"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" max="${maxDateStr}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
         }
@@ -1633,7 +1604,7 @@
             if (window.lucide) lucide.createIcons();
 
             // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它
-            const loadingScreen = document.getElementById('app-loader');
+            const loadingScreen = document.getElementById('app-loading');
             if (loadingScreen && state.view !== 'loading') {
                 loadingScreen.classList.add('fade-out');
                 // 动画 600ms 后从 DOM 移除，避免遮挡点击
@@ -1662,7 +1633,7 @@
         
         // 保底逻辑：如果 2 秒还没移除 loading，强制进入
         setTimeout(() => { 
-            const loadingScreen = document.getElementById('app-loader');
+            const loadingScreen = document.getElementById('app-loading');
             if (loadingScreen && !loadingScreen.classList.contains('fade-out')) { 
                 state.view = 'login'; 
                 render(); 
