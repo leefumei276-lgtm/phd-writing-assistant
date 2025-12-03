@@ -12,11 +12,8 @@
 
     <title>PhD Flow</title>
     
-    <!-- 图标支持 (需求3: 使用上传的图标) -->
-    <!-- iOS 桌面图标 -->
+    <!-- 图标支持 -->
     <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
-
-    <!-- 通用 favicon / Android 图标 -->
     <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./icon-192.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./icon-192.png">
@@ -26,8 +23,8 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 启动加载层样式 (需求4) --- */
-        #app-loading {
+        /* --- 启动加载层样式 (优化版) --- */
+        #app-loader {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: #f9fafb; /* bg-slate-50 */
@@ -39,7 +36,7 @@
             transition: opacity 0.6s ease-out, visibility 0.6s;
         }
         
-        #app-loading.fade-out {
+        #app-loader.fade-out {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -52,6 +49,17 @@
         @keyframes pulse-text {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+        
+        /* 小小的旋转圈 */
+        .loader-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(99, 102, 241, 0.1);
+            border-top-color: #6366F1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
         }
 
         /* --- 原有动画定义 --- */
@@ -132,11 +140,12 @@
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 1. 加载层 (需求4) -->
-    <div id="app-loading">
+    <!-- 1. 全屏加载层 (需求1) -->
+    <div id="app-loader">
+        <div class="loader-spinner"></div>
         <div class="text-center text-slate-500 text-sm">
-            <div class="mb-3 loading-pulse font-medium text-slate-600 text-lg">正在唤醒 PhD Flow…</div>
-            <div class="text-xs opacity-80">如果加载时间有点久，请稍等片刻。</div>
+            <div class="mb-2 loading-pulse font-medium text-slate-600 text-lg">正在为你布置写作小书桌...</div>
+            <div class="text-xs opacity-80">请稍等片刻，灵感马上就来</div>
         </div>
     </div>
 
@@ -154,8 +163,10 @@
 
     <!-- 核心逻辑 -->
     <script>
-        // --- 核心数据 ---
-        
+        // --- 核心配置 ---
+        const MAX_FUTURE_YEARS = 20; // 允许未来 20 年的日期选择
+
+        // --- 心理能量站文案列表 (需求3 & 4) ---
         const psychQuotes = [
             "今天写的每一个字，都会在未来为你发光 ✨",
             "不必一下子写完一章，只要今天比昨天多一点点就好。",
@@ -349,7 +360,7 @@
             showArticleModal: false, 
             articleStatusTouched: false, 
             viewDate: new Date().toISOString().split('T')[0],
-            dailyQuote: psychQuotes[0],
+            dailyQuote: "", // 初始为空，由 pickEnergyQuote 填充
             formData: { 
                 date: '', 
                 startCount: 0, 
@@ -471,7 +482,6 @@
                 
                 Storage.set('phd_current_user', username);
                 state.view = 'app';
-                state.dailyQuote = psychQuotes[Math.floor(Math.random() * psychQuotes.length)];
                 
                 render();
             } catch(e) {
@@ -503,20 +513,12 @@
         // --- 业务辅助函数 ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         
-        // 获取允许选择的最大日期（毕业日期 或 今天+1年）
+        // 需求2：修改最大日期为未来 20 年
         const getMaxDate = () => {
             const today = new Date();
-            const oneYearLater = new Date(today);
-            oneYearLater.setFullYear(today.getFullYear() + 1);
-            
-            if (state.graduationDate) {
-                const grad = parseSafeDate(state.graduationDate);
-                // 如果毕业日期比一年后还晚，就用毕业日期，否则用一年后（至少允许一年）
-                if (grad && grad > oneYearLater) {
-                    return grad;
-                }
-            }
-            return oneYearLater;
+            const max = new Date(today);
+            max.setFullYear(today.getFullYear() + MAX_FUTURE_YEARS);
+            return max;
         };
         
         const calcStats = (targetDate) => {
@@ -617,6 +619,46 @@
                 default: return 'badge-journal';
             }
         };
+
+        // --- 心理能量站逻辑 (需求3) ---
+        function pickEnergyQuote() {
+            let nextIndex = 0;
+            const lastIndex = Storage.get('energy_last_index', -1);
+            
+            // 尝试随机一个不同的索引
+            if (psychQuotes.length > 1) {
+                let attempts = 0;
+                do {
+                    nextIndex = Math.floor(Math.random() * psychQuotes.length);
+                    attempts++;
+                } while (nextIndex === lastIndex && attempts < 5);
+            }
+
+            const quote = psychQuotes[nextIndex];
+            state.dailyQuote = quote;
+            
+            // 更新 DOM (局部更新，避免重绘)
+            const quoteEl = document.getElementById('daily-quote-display');
+            if (quoteEl) {
+                quoteEl.innerText = `"${quote}"`;
+            }
+
+            // 持久化
+            Storage.set('energy_last_index', nextIndex);
+            Storage.set('energy_last_ts', Date.now());
+        }
+
+        function startEnergyQuoteAutoRefresh() {
+            // 每分钟检查一次
+            setInterval(() => {
+                const lastTs = Storage.get('energy_last_ts', 0);
+                const now = Date.now();
+                // 30分钟 = 30 * 60 * 1000 = 1800000 ms
+                if (now - lastTs >= 1800000) {
+                    pickEnergyQuote();
+                }
+            }, 60000); 
+        }
 
         // --- 排序节点的逻辑 ---
         function sortMilestones(milestones) {
@@ -787,12 +829,16 @@
             // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // 修改：允许向未来翻页 (需求2：移除限制)
+            // 修改：允许向未来翻页 (需求2)
             changeDate: (days) => { 
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
                 const newDateStr = current.toISOString().split('T')[0];
                 
+                // 检查是否超过最大日期
+                const maxDate = getMaxDate();
+                if (days > 0 && current > maxDate) return;
+
                 state.viewDate = newDateStr; 
                 render(); 
             },
@@ -1285,7 +1331,12 @@
                 <button onclick="actions.saveGradSettings()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform mt-2">保存设置</button>
             </div>` : ''}
             
-            </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6"><div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button><div class="flex flex-col items-center cursor-pointer group" onclick="actions.goToToday()"><span class="text-lg font-bold text-slate-800">${dateStr}</span>${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 回到今天</span>`}</div><button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button></div><div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4><p class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p></div></div><div><h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider px-1 flex items-center gap-2"><div class="w-1 h-4 bg-indigo-400 rounded-full"></div> ${isToday?'今日':weekStr}专注</h3>${plansHtml}<button onclick="actions.openAddPlan()" class="w-full bg-white border-2 border-dashed border-indigo-100 rounded-[24px] p-4 text-indigo-400 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors mt-6">${Icons.Plus} 添加${isToday?'今日':'该日'}专注</button></div>
+            </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6"><div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button><div class="flex flex-col items-center cursor-pointer group" onclick="actions.goToToday()"><span class="text-lg font-bold text-slate-800">${dateStr}</span>${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 回到今天</span>`}</div><button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button></div><div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4>
+            
+            <!-- 需求3：使用 state.dailyQuote 动态展示 -->
+            <p id="daily-quote-display" class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p>
+            
+            </div></div><div><h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider px-1 flex items-center gap-2"><div class="w-1 h-4 bg-indigo-400 rounded-full"></div> ${isToday?'今日':weekStr}专注</h3>${plansHtml}<button onclick="actions.openAddPlan()" class="w-full bg-white border-2 border-dashed border-indigo-100 rounded-[24px] p-4 text-indigo-400 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors mt-6">${Icons.Plus} 添加${isToday?'今日':'该日'}专注</button></div>
             
             <div class="grid grid-cols-3 gap-2">
                 <div class="bg-white p-3 rounded-[20px] border border-indigo-50 shadow-sm flex flex-col justify-center items-center text-center">
@@ -1575,7 +1626,7 @@
             if (window.lucide) lucide.createIcons();
 
             // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它 (需求4)
-            const loadingScreen = document.getElementById('app-loading');
+            const loadingScreen = document.getElementById('app-loader');
             if (loadingScreen && state.view !== 'loading') {
                 loadingScreen.classList.add('fade-out');
                 // 动画 600ms 后从 DOM 移除，避免遮挡点击
@@ -1590,6 +1641,11 @@
             try {
                 requestAnimationFrame(() => {
                     const savedUser = Storage.get('phd_current_user', null);
+                    // 初始化加载心理能量站文案
+                    pickEnergyQuote();
+                    // 启动自动轮播
+                    startEnergyQuoteAutoRefresh();
+                    
                     if (savedUser) { loadLocalUser(savedUser); } else { state.view = 'login'; render(); }
                 });
             } catch (error) { console.error("Init failed:", error); state.view = 'login'; render(); }
@@ -1599,7 +1655,7 @@
         
         // 保底逻辑：如果 2 秒还没移除 loading，强制进入
         setTimeout(() => { 
-            const loadingScreen = document.getElementById('app-loading');
+            const loadingScreen = document.getElementById('app-loader');
             if (loadingScreen && !loadingScreen.classList.contains('fade-out')) { 
                 state.view = 'login'; 
                 render(); 
