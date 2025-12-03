@@ -23,41 +23,59 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 启动加载层样式 (Bug 1: 优化加载体验) --- */
-        #app-loading {
+        /* --- 需求 2：全新的初始化加载层样式 --- */
+        #app-init-screen {
             position: fixed;
             inset: 0;
-            background-color: #f9fafb;
+            background-color: #ffffff;
             z-index: 9999;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: opacity 0.4s ease-out, visibility 0.4s;
+            transition: opacity 0.5s ease-out, visibility 0.5s;
         }
-        
-        #app-loading.fade-out {
+
+        #app-init-screen.fade-out {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
         }
 
-        .loader-spinner {
+        .init-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .init-spinner {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(99, 102, 241, 0.1);
             border-top-color: #6366F1;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
-        .loading-text {
+        .init-text {
             color: #4b5563;
             font-size: 15px;
             font-weight: 500;
             letter-spacing: 0.02em;
             animation: pulse 2s infinite ease-in-out;
+        }
+
+        #app-main {
+            display: none; /* 初始隐藏，由 JS 控制显示 */
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
+        }
+        
+        #app-main.visible {
+            display: block;
+            opacity: 1;
         }
 
         /* --- 原有动画定义 --- */
@@ -108,9 +126,6 @@
         .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: #6366F1; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* Loading Screen specific styles */
-        #loading-text { font-size: 0.75rem; }
-        
         /* Timeline Connector */
         .timeline-line { position: absolute; left: 6px; top: 12px; bottom: -20px; width: 2px; background-color: #e2e8f0; z-index: 0; }
         .group:last-child .timeline-line { display: none; }
@@ -128,30 +143,47 @@
         .milestones-scroll::-webkit-scrollbar-track { background: transparent; }
         .milestones-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
 
-        /* Custom Calendar Styles */
+        /* Custom Calendar Styles (Used for both Milestone Calendar and Main Calendar) */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .calendar-day { display: flex; align-items: center; justify-content: center; height: 36px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
         .calendar-day:hover { background-color: #f3f4f6; }
-        .calendar-day.selected { background-color: #4f46e5; color: white; font-weight: bold; }
-        .calendar-day.today { border: 1px solid #6366f1; color: #6366f1; }
+        
+        /* 选中态 */
+        .calendar-day.selected { background-color: #4f46e5; color: white; font-weight: bold; border-radius: 50%; }
+        /* 临时选中态 (主日历中) */
+        .calendar-day.temp-selected { background-color: #6366f1; color: white; font-weight: bold; border-radius: 50%; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4); }
+        /* 今天 */
+        .calendar-day.today { border: 1px solid #6366f1; color: #6366f1; border-radius: 50%; }
+        /* 选中且是今天 */
+        .calendar-day.today.selected, .calendar-day.today.temp-selected { border: 2px solid white; }
+        
         .calendar-day.empty { pointer-events: none; }
+        .calendar-day.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 1. 修复 Bug 1：静态加载层 (直接在 body 第一位) -->
-    <div id="app-loading">
-        <div class="loader-spinner"></div>
-        <div class="loading-text">正在为你准备 PhD Flow，马上就好…</div>
+    <!-- 需求 2：全新初始化加载层 -->
+    <div id="app-init-screen">
+        <div class="init-wrapper">
+            <div class="init-spinner"></div>
+            <p class="init-text">第一次打开 PhD Flow，正在为你整理写作书桌…</p>
+        </div>
     </div>
 
-    <!-- 2. 应用主容器：初始为空，等待 JS 填充 -->
-    <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
-        <!-- 内容由 JS 生成 -->
+    <!-- 需求 2：应用主容器 (初始化完成后显示) -->
+    <div id="app-main">
+        <!-- 原应用挂载点 -->
+        <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
+            <!-- 内容由 JS 生成 -->
+        </div>
+        
+        <!-- 文章节点的日历挂载点 -->
+        <div id="calendar-mount" class="relative z-[100]"></div>
+        
+        <!-- 需求 1：主日历挂载点 -->
+        <div id="main-calendar-mount" class="relative z-[100]"></div>
     </div>
-    
-    <!-- 独立的日历挂载点，避免主渲染刷新导致的闪退 -->
-    <div id="calendar-mount" class="relative z-[100]"></div>
 
     <!-- 关键脚本 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -160,14 +192,11 @@
     <!-- 核心逻辑 -->
     <script>
         // --- 核心配置 ---
-        // Bug 2 修复：定义未来最大日期
+        // 定义日期范围：前后20年
         const TODAY_OBJ = new Date();
-        const MAX_FUTURE_YEARS = 20;
-        const MAX_FUTURE_DATE = new Date(
-            TODAY_OBJ.getFullYear() + MAX_FUTURE_YEARS,
-            TODAY_OBJ.getMonth(),
-            TODAY_OBJ.getDate()
-        );
+        const YEAR_RANGE = 20;
+        const MIN_DATE = new Date(TODAY_OBJ.getFullYear() - YEAR_RANGE, 0, 1);
+        const MAX_DATE = new Date(TODAY_OBJ.getFullYear() + YEAR_RANGE, 11, 31);
 
         // 辅助函数：格式化日期为 input 用的 YYYY-MM-DD
         function formatDateToInput(d) {
@@ -176,8 +205,8 @@
             const day = String(d.getDate()).padStart(2, '0');
             return `${y}-${m}-${day}`;
         }
-
-        const MAX_FUTURE_DATE_STR = formatDateToInput(MAX_FUTURE_DATE);
+        
+        const MAX_FUTURE_DATE_STR = formatDateToInput(MAX_DATE);
 
         // --- 心理能量站文案列表 ---
         const psychQuotes = [
@@ -285,13 +314,6 @@
             sad: ["今天有点艰难，但至少我坚持下来了。", "心情有点低落，或许是该换个思路了。"],
             tired: ["脑细胞已耗尽，急需充电！🔋", "实在是太困了，先苟住，明天再战！💤"]
         };
-
-        const MOCK_LEADERBOARD = [
-            { username: "学术卷王", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Felix", wordCount: 3200 },
-            { username: "文献杀手", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka", wordCount: 2100 },
-            { username: "深夜战神", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Milo", wordCount: 1800 },
-            { username: "早起鸟", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Bella", wordCount: 500 }
-        ];
         
         // --- 核心配置：文章类型、推荐节点、提示语 ---
         const ARTICLE_CONFIG = {
@@ -352,7 +374,6 @@
             articles: [], 
             totalWordGoal: 100000,
             graduationDate: '',
-            // 新增全局目标配置
             globalGoalType: '毕业',
             globalGoalName: '毕业论文',
             
@@ -373,7 +394,7 @@
             showArticleModal: false, 
             articleStatusTouched: false, 
             viewDate: new Date().toISOString().split('T')[0],
-            dailyQuote: "", // 初始为空，由 pickEnergyQuote 填充
+            dailyQuote: "",
             formData: { 
                 date: '', 
                 startCount: 0, 
@@ -389,7 +410,6 @@
             newGoalData: { name: '', targetQty: 1, unit: '篇', targetWords: 10000 },
             planFormData: { target: 1000, content: '', linkedGoalId: 'thesis' },
             tempProfile: { name: '', avatar: '' },
-            // 文章表单数据
             articleFormData: {
                 id: null,
                 title: '',
@@ -400,12 +420,19 @@
                 reviewNotes: '',
                 notes: ''
             },
-            // 日历组件状态
+            // 文章节点日历状态
             calendar: {
                 visible: false,
-                targetIndex: null, // 正在编辑的 milestones 索引
+                targetIndex: null,
                 currentYear: new Date().getFullYear(),
                 currentMonth: new Date().getMonth()
+            },
+            // 需求 1：新增主日历状态 (用于首页切换日期)
+            mainCalendar: {
+                visible: false,
+                viewYear: new Date().getFullYear(),
+                viewMonth: new Date().getMonth(),
+                selectedDateStr: null // 弹窗中临时选中的日期
             }
         };
 
@@ -462,12 +489,9 @@
                 state.entries = Array.isArray(data.entries) ? data.entries : [];
                 state.customGoals = Array.isArray(data.customGoals) ? data.customGoals : [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
                 state.dailyPlans = Array.isArray(data.dailyPlans) ? data.dailyPlans : [];
-                
-                // 加载全局目标配置
                 state.globalGoalType = data.globalGoalType || '毕业';
                 state.globalGoalName = data.globalGoalName || '毕业论文';
                 
-                // 数据兼容处理
                 let loadedArticles = Array.isArray(data.articles) ? data.articles : [];
                 state.articles = loadedArticles.map(a => {
                     if (!a.milestones && a.submissionDate) {
@@ -534,32 +558,18 @@
             return { total, today, avg };
         };
 
-        // 计算日均产出 (从第一次使用到今天)
         const getDailyAverage = () => {
             if (!state.entries || state.entries.length === 0) return 0;
-            
             const total = state.entries.reduce((acc, e) => acc + e.dailyCount, 0);
-            
-            // 找到最早的打卡记录日期
             const entryDates = state.entries.map(e => parseSafeDate(e.date)).filter(d => d);
             if (entryDates.length === 0) return 0;
-            
-            // 按时间排序找最早的
             entryDates.sort((a, b) => a - b);
             const firstDate = entryDates[0];
-            
-            // 计算今天和最早日期的天数差
             const now = new Date();
-            // 归一化到午夜，避免时分秒影响
             firstDate.setHours(0,0,0,0);
             now.setHours(0,0,0,0);
-            
-            // 毫秒转天数
             let diffDays = Math.floor((now - firstDate) / (1000 * 60 * 60 * 24)) + 1;
-            
-            // 至少为1天
             diffDays = Math.max(1, diffDays);
-            
             return Math.round(total / diffDays);
         };
         
@@ -594,14 +604,7 @@
             return fallbackMsgs[Math.floor(Math.random() * fallbackMsgs.length)];
         };
 
-        const cleanOldPlans = () => {
-            // 移除旧的清理逻辑，因为现在允许保留历史计划
-            // const today = getTodayStr();
-            // if (state.dailyPlans && state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
-            //     state.dailyPlans = [];
-            //     saveUserData();
-            // }
-        };
+        const cleanOldPlans = () => {};
 
         const getGoalTagStyle = (name) => {
             if (!name) return { emoji: '🌱', cls: 'tag-green' };
@@ -629,8 +632,6 @@
         function pickEnergyQuote() {
             let nextIndex = 0;
             const lastIndex = Storage.get('energy_last_index', -1);
-            
-            // 尝试随机一个不同的索引
             if (psychQuotes.length > 1) {
                 let attempts = 0;
                 do {
@@ -638,27 +639,20 @@
                     attempts++;
                 } while (nextIndex === lastIndex && attempts < 5);
             }
-
             const quote = psychQuotes[nextIndex];
             state.dailyQuote = quote;
-            
-            // 更新 DOM (局部更新，避免重绘)
             const quoteEl = document.getElementById('daily-quote-display');
             if (quoteEl) {
                 quoteEl.innerText = `"${quote}"`;
             }
-
-            // 持久化
             Storage.set('energy_last_index', nextIndex);
             Storage.set('energy_last_ts', Date.now());
         }
 
         function startEnergyQuoteAutoRefresh() {
-            // 每分钟检查一次
             setInterval(() => {
                 const lastTs = Storage.get('energy_last_ts', 0);
                 const now = Date.now();
-                // 30分钟 = 30 * 60 * 1000 = 1800000 ms
                 if (now - lastTs >= 1800000) {
                     pickEnergyQuote();
                 }
@@ -669,69 +663,52 @@
         function sortMilestones(milestones) {
             return milestones.sort((a,b) => {
                 if(!a.date && !b.date) return 0;
-                if(!a.date) return 1; // 无日期的排后面
+                if(!a.date) return 1;
                 if(!b.date) return -1;
                 return new Date(a.date) - new Date(b.date);
             });
         }
 
-        // --- 智能状态更新逻辑 ---
         function updateStatusFromMilestones() {
             if (state.articleStatusTouched) return; 
-
             const milestones = state.articleFormData.milestones || [];
             const withDate = milestones.filter(m => m.date);
-            
             if (withDate.length === 0) return;
-
             withDate.sort((a, b) => new Date(a.date) - new Date(b.date));
             const latest = withDate[withDate.length - 1];
             const suggested = (latest.label || '').trim();
-            
             if (!suggested) return;
-
             state.articleFormData.status = suggested;
             const inputEl = document.getElementById('article-status-input');
             if (inputEl) inputEl.value = suggested;
         }
 
-        // --- 局部渲染 DOM 辅助函数 ---
         function renderMilestonesList() {
             const container = document.getElementById('milestone-list-container');
             if(!container) return; 
-
             const ms = state.articleFormData.milestones;
-            
-            // 注意：这里把 <input type="date"> 换成了自定义 div，点击触发 actions.openCalendar(idx)
             const html = ms.map((m, idx) => `
                 <div class="border border-slate-200 rounded-xl p-3 bg-white mb-2 transition-all hover:shadow-sm group">
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="actions.toggleMilestoneNote(${idx})" class="text-slate-400 hover:text-indigo-500 w-6 h-6 flex items-center justify-center transition-transform ${m.expanded ? 'rotate-180 text-indigo-500' : ''}">
                             <i data-lucide="chevron-down" class="w-4 h-4"></i>
                         </button>
-                        
                         <input type="text" placeholder="节点名称" value="${m.label}" oninput="actions.updateMilestoneText(${idx}, 'label', this.value)" class="flex-1 text-sm font-bold text-slate-700 outline-none bg-transparent placeholder-slate-300">
-                        
-                        <!-- 自定义日期选择器触发区 -->
                         <div onclick="actions.openCalendar(${idx})" class="cursor-pointer text-xs font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1.5 w-28 text-center hover:border-indigo-500 hover:text-indigo-600 transition-colors ${m.date ? 'text-slate-700 font-bold' : 'text-slate-400'}">
                             ${m.date || '选择日期'}
                         </div>
-                        
                         <button type="button" onclick="actions.removeMilestone(${idx})" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
-                    
                     <div id="ms-note-${idx}" class="${m.expanded ? '' : 'hidden'} mt-3 pt-2 border-t border-slate-100 animate-fade-in">
                         <textarea placeholder="添加备注 (如：审稿人意见要点、沟通记录...)" oninput="actions.updateMilestoneText(${idx}, 'note', this.value)" class="w-full text-xs text-slate-600 bg-slate-50 rounded-lg p-2 outline-none border border-transparent focus:border-indigo-100 resize-none h-16 block">${m.note}</textarea>
                     </div>
                 </div>
             `).join('');
-            
             container.innerHTML = html;
             if (window.lucide) lucide.createIcons();
         }
 
-        // --- 独立的日历组件渲染函数 ---
-        // 渲染到 #calendar-mount 而不是 #app，避免主视图刷新
+        // --- Article Milestone Calendar Component ---
         function renderCalendarComponent() {
             const mount = document.getElementById('calendar-mount');
             if (!mount) return;
@@ -743,25 +720,18 @@
 
             const { currentYear, currentMonth } = state.calendar;
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // 0 is Sunday
-            
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
             const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
             let daysHtml = '';
-            // Empty slots for previous month
-            for (let i = 0; i < firstDay; i++) {
-                daysHtml += `<div class="calendar-day empty"></div>`;
-            }
-            // Days
+            for (let i = 0; i < firstDay; i++) { daysHtml += `<div class="calendar-day empty"></div>`; }
             const today = new Date();
             for (let day = 1; day <= daysInMonth; day++) {
                 const isToday = (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === day);
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                // 检查当前节点是否已选中该日期
                 const targetIdx = state.calendar.targetIndex;
                 const currentSelected = (targetIdx !== null && state.articleFormData.milestones[targetIdx]) ? state.articleFormData.milestones[targetIdx].date : '';
                 const isSelected = currentSelected === dateStr;
-
                 daysHtml += `<div onclick="actions.selectCalendarDate(${day})" class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}">${day}</div>`;
             }
 
@@ -782,9 +752,7 @@
                             <span class="text-xs text-center text-slate-300 font-bold">五</span>
                             <span class="text-xs text-center text-slate-300 font-bold">六</span>
                         </div>
-                        <div class="calendar-grid">
-                            ${daysHtml}
-                        </div>
+                        <div class="calendar-grid">${daysHtml}</div>
                         <div class="mt-4 flex justify-center">
                             <button onclick="actions.closeCalendar()" class="text-xs text-slate-400 hover:text-slate-600">取消</button>
                         </div>
@@ -794,18 +762,84 @@
             if (window.lucide) lucide.createIcons();
         }
 
+        // --- 需求 1：Main Calendar Component (主日历渲染) ---
+        function renderMainCalendarComponent() {
+            const mount = document.getElementById('main-calendar-mount');
+            if (!mount) return;
+
+            if (!state.mainCalendar.visible) {
+                mount.innerHTML = '';
+                return;
+            }
+
+            const { viewYear, viewMonth, selectedDateStr } = state.mainCalendar;
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+            const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+            const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+
+            let daysHtml = '';
+            for (let i = 0; i < firstDay; i++) { daysHtml += `<div class="calendar-day empty"></div>`; }
+            
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateObj = new Date(viewYear, viewMonth, day);
+                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const isToday = (today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day);
+                const isSelected = selectedDateStr === dateStr;
+                
+                // 检查范围 (MIN_DATE to MAX_DATE)
+                const isDisabled = dateObj < MIN_DATE || dateObj > MAX_DATE;
+
+                daysHtml += `<div onclick="${isDisabled ? '' : `actions.selectMainCalDay(${day})`}" class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'temp-selected' : ''} ${isDisabled ? 'disabled' : ''}">${day}</div>`;
+            }
+
+            // 范围限制检查，控制月份切换按钮
+            const prevMonthDate = new Date(viewYear, viewMonth - 1, 1);
+            const nextMonthDate = new Date(viewYear, viewMonth + 1, 1);
+            // 简单判断：如果上个月最后一天小于 MIN_DATE，禁用左翻页；下个月第一天大于 MAX_DATE，禁用右翻页
+            const canPrev = new Date(viewYear, viewMonth, 0) >= MIN_DATE;
+            const canNext = new Date(viewYear, viewMonth + 1, 1) <= MAX_DATE;
+
+            mount.innerHTML = `
+                <div class="fixed inset-0 bg-black/30 z-[100] flex items-center justify-center p-4 animate-fade-in" onclick="actions.closeMainCalendar()">
+                    <div class="bg-white rounded-2xl p-5 w-full max-w-[320px] shadow-2xl animate-scale-in" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-center mb-4">
+                            <button onclick="actions.mainCalPrevMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 ${!canPrev ? 'opacity-30 pointer-events-none' : ''}"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <span class="font-bold text-slate-800 text-lg">${viewYear}年 ${monthNames[viewMonth]}</span>
+                            <button onclick="actions.mainCalNextMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600 ${!canNext ? 'opacity-30 pointer-events-none' : ''}"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        </div>
+                        <div class="calendar-grid mb-2">
+                            <span class="text-xs text-center text-slate-300 font-bold">日</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">一</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">二</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">三</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">四</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">五</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">六</span>
+                        </div>
+                        <div class="calendar-grid mb-6">
+                            ${daysHtml}
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="actions.resetMainCalDate()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-500 font-bold text-sm hover:bg-slate-50 transition">还原今天</button>
+                            <button onclick="actions.confirmMainCalDate()" class="flex-1 py-2.5 rounded-xl primary-gradient text-white font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition">完成</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        }
+
         function updateArticleTypeUI(type) {
             const config = ARTICLE_CONFIG[type] || ARTICLE_CONFIG['期刊论文'];
-            
             const titleInput = document.getElementById('article-title-input');
             const journalInput = document.getElementById('article-journal-input');
             const journalLabel = document.getElementById('article-journal-label');
             const datalist = document.getElementById('stage-options');
-
             if(titleInput) titleInput.placeholder = config.titlePlaceholder;
             if(journalInput) journalInput.placeholder = config.journalPlaceholder;
             if(journalLabel) journalLabel.innerText = config.journalLabel + " *";
-            
             if(datalist) {
                 datalist.innerHTML = config.stages.map(s => `<option value="${s}">${s}</option>`).join('');
             }
@@ -813,7 +847,6 @@
 
         // --- 交互 Action ---
         window.actions = {
-            // ... Auth & System ...
             auth: (e) => { e.preventDefault(); const u = e.target.username.value.trim() || "匿名博士"; loadLocalUser(u); },
             askLogout: () => { state.showSidebar = false; state.showLogoutModal = true; render(); },
             confirmLogout: () => { Storage.remove('phd_current_user'); state.user = null; state.showLogoutModal = false; state.view = 'login'; render(); },
@@ -831,26 +864,77 @@
             },
             toggleSidebar: () => { state.showSidebar = !state.showSidebar; render(); },
             
-            // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // Bug 2 修复：允许向未来翻页，仅限制最大日期
+            // 需求 1 修改：changeDate 只保留"前一天"逻辑 (days = -1)
             changeDate: (days) => { 
+                if (days > 0) {
+                    // 如果传入 >0 (右箭头)，直接调用日历弹窗
+                    actions.openMainCalendar();
+                    return;
+                }
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
-                
-                // 检查是否超过最大日期 (使用时间戳比较以避免时分秒问题)
-                if (days > 0 && current.getTime() > MAX_FUTURE_DATE.getTime()) return;
+                // 范围检查
+                if (current < MIN_DATE || current > MAX_DATE) return;
 
                 const newDateStr = current.toISOString().split('T')[0];
                 state.viewDate = newDateStr; 
                 render(); 
             },
             
-            // 修改：回到今天，不带条件限制
             goToToday: () => { 
                 state.viewDate = getTodayStr(); 
                 render(); 
+            },
+
+            // --- 需求 1：主日历交互 Action ---
+            openMainCalendar: () => {
+                const d = parseSafeDate(state.viewDate) || new Date();
+                state.mainCalendar.viewYear = d.getFullYear();
+                state.mainCalendar.viewMonth = d.getMonth();
+                state.mainCalendar.selectedDateStr = state.viewDate;
+                state.mainCalendar.visible = true;
+                renderMainCalendarComponent();
+            },
+            closeMainCalendar: () => {
+                state.mainCalendar.visible = false;
+                renderMainCalendarComponent();
+            },
+            mainCalPrevMonth: () => {
+                let { viewMonth, viewYear } = state.mainCalendar;
+                if (viewMonth === 0) { viewMonth = 11; viewYear--; } else { viewMonth--; }
+                state.mainCalendar.viewMonth = viewMonth;
+                state.mainCalendar.viewYear = viewYear;
+                renderMainCalendarComponent();
+            },
+            mainCalNextMonth: () => {
+                let { viewMonth, viewYear } = state.mainCalendar;
+                if (viewMonth === 11) { viewMonth = 0; viewYear++; } else { viewMonth++; }
+                state.mainCalendar.viewMonth = viewMonth;
+                state.mainCalendar.viewYear = viewYear;
+                renderMainCalendarComponent();
+            },
+            selectMainCalDay: (day) => {
+                const { viewYear, viewMonth } = state.mainCalendar;
+                const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                // 临时选中，不立即关闭
+                state.mainCalendar.selectedDateStr = dateStr;
+                renderMainCalendarComponent();
+            },
+            confirmMainCalDate: () => {
+                if (state.mainCalendar.selectedDateStr) {
+                    state.viewDate = state.mainCalendar.selectedDateStr;
+                    state.mainCalendar.visible = false;
+                    renderMainCalendarComponent();
+                    render(); // 刷新主页面
+                }
+            },
+            resetMainCalDate: () => {
+                state.viewDate = getTodayStr();
+                state.mainCalendar.visible = false;
+                renderMainCalendarComponent();
+                render(); // 刷新主页面
             },
             
             openAddPlan: () => { state.editingPlanId = null; const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : ''; state.planFormData = { target: 1000, content: '', linkedGoalId: defaultGoal }; state.showPlanModal = true; render(); },
@@ -866,7 +950,6 @@
             },
             deletePlan: (id) => { if(confirm("确定删除这个目标吗？")) { state.dailyPlans = state.dailyPlans.filter(p => p.id !== id); saveUserData(); render(); } },
 
-            // ... Work Session ...
             start: (planId) => { 
                 const plan = state.dailyPlans.find(p => p.id === planId);
                 const linkedGoalId = plan ? plan.linkedGoalId : '';
@@ -922,13 +1005,10 @@
                 const end = parseInt(e.target.endCount.value);
                 if (end < start && !confirm("结束字数少于开始字数？(记录为负产出)")) return;
                 const diff = end - start;
-                
                 let planId = null, linkedGoalId = isFocus ? state.currentSession.linkedGoalId : state.formData.linkedGoalId;
                 if (!linkedGoalId && state.customGoals.length > 0) { linkedGoalId = state.customGoals[0].id; }
-                
                 let goalName = "未分类目标", planContent = state.formData.chapter || "打卡记录";
                 let mood = state.formData.mood, reflection = state.formData.reflection;
-                
                 if(!reflection) {
                     const opts = autoReflections[mood] || autoReflections.neutral;
                     reflection = opts[Math.floor(Math.random() * opts.length)];
@@ -961,12 +1041,10 @@
                     mood, reflection, linkedPlanContent: planContent, linkedGoalName: goalName, linkedPlanId: planId, linkedGoalId: linkedGoalId
                 });
                 state.entries.sort((a,b)=> new Date(b.date)-new Date(a.date));
-                
                 state.currentSession = null;
                 state.formData = { date: getTodayStr(), startCount: 0, endCount: 0, mood: 'neutral', reflection: '', chapter: '', linkedGoalId: '', duration: '', durationNum: 0 }; 
                 state.feedbackData = { diff, linkedGoalName: goalName, encourageMsg }; 
                 state.showFeedback = true;
-                
                 render(); 
                 saveUserData(); 
             },
@@ -974,7 +1052,6 @@
             setMood: (m) => { state.formData.mood = m; render(); },
             closeFeedback: () => { state.showFeedback = false; state.activeTab = 'history'; render(); },
             
-            // ... Goals ...
             openAddGoal: () => { state.editingGoalId = null; state.newGoalData = { name: '', targetQty: 1, unit: '篇', targetWords: 50000 }; state.showGoalModal = true; render(); },
             openEditGoal: (id) => { const g = state.customGoals.find(x => x.id === id); if (g) { state.editingGoalId = id; state.newGoalData = { ...g }; state.showGoalModal = true; render(); } },
             setNewGoal: (f, v) => state.newGoalData[f] = v,
@@ -993,37 +1070,31 @@
                 const dateInput = document.getElementById('grad-date-input');
                 const typeInput = document.getElementById('global-type-input');
                 const nameInput = document.getElementById('global-name-input');
-
                 if(dateInput) {
                     const val = dateInput.value;
                     if (parseSafeDate(val)) state.graduationDate = val;
                     else if (val === '') state.graduationDate = '';
                 }
-
                 if (typeInput) state.globalGoalType = typeInput.value || '毕业';
                 if (nameInput) {
                     state.globalGoalName = nameInput.value || '毕业论文';
-                    // 联动更新第一个目标卡片的名称，保持一致
                     if (state.customGoals.length > 0) {
                         state.customGoals[0].name = state.globalGoalName;
                     }
                 }
-
                 state.showGradSettings = false;
                 saveUserData();
                 render();
             },
-            
             toggleGoalModal: () => { state.showGoalModal = !state.showGoalModal; render(); },
             setTotalGoal: () => { const v = prompt("目标字数:", state.totalWordGoal); if(v) { state.totalWordGoal = Number(v); saveUserData(); render(); } },
-            
             editProfile: () => { state.tempProfile = {...state.user}; state.showProfileModal = true; state.showSidebar = false; render(); },
             closeProfile: () => { state.showProfileModal = false; render(); },
             setTempProfile: (f,v) => state.tempProfile[f]=v,
             randAvatar: () => { state.tempProfile.avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}`; render(); },
             saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); render(); },
 
-            // --- Custom Calendar Actions (Independent of Main Render) ---
+            // --- Custom Calendar Actions (Milestones) ---
             openCalendar: (index) => {
                 state.calendar.visible = true;
                 state.calendar.targetIndex = index;
@@ -1065,17 +1136,12 @@
             selectCalendarDate: (day) => {
                 const { currentYear, currentMonth, targetIndex } = state.calendar;
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                
                 if (targetIndex !== null) {
-                    // Update Data
                     state.articleFormData.milestones[targetIndex].date = dateStr;
                     state.articleFormData.milestones = sortMilestones(state.articleFormData.milestones);
-                    
-                    // Partial Update DOM
                     renderMilestonesList();
                     updateStatusFromMilestones();
                 }
-                
                 actions.closeCalendar();
             },
 
@@ -1084,7 +1150,6 @@
                 state.articleStatusTouched = false; 
                 const defaultType = '期刊论文';
                 const defaultMilestones = ARTICLE_CONFIG[defaultType].milestones.map(label => ({ label, date: '', note: '' }));
-                
                 state.articleFormData = {
                     id: null,
                     title: '',
@@ -1107,14 +1172,12 @@
                 const article = state.articles.find(a => a.id === id);
                 if (article) {
                     state.articleFormData = JSON.parse(JSON.stringify(article));
-                    
                     if (article.status && article.status.trim() !== '') {
                         state.articleStatusTouched = true;
                     } else {
                         state.articleStatusTouched = false;
                         setTimeout(() => updateStatusFromMilestones(), 0);
                     }
-
                     state.showArticleModal = true;
                     render();
                     setTimeout(() => {
@@ -1197,7 +1260,6 @@
                 state.articleFormData.milestones[index][field] = value;
                 if (field === 'label') updateStatusFromMilestones();
             },
-            // Note: updateMilestoneDate is replaced by selectCalendarDate
             toggleMilestoneNote: (index) => {
                 const m = state.articleFormData.milestones[index];
                 m.expanded = !m.expanded;
@@ -1277,7 +1339,7 @@
 
         function renderDashboard() {
             const { total, today } = calcStats(state.viewDate);
-            const dailyAvg = getDailyAverage(); // 使用新函数计算日均
+            const dailyAvg = getDailyAverage();
             const days = getDaysLeft();
             const isToday = state.viewDate === getTodayStr();
             
@@ -1290,8 +1352,6 @@
             }
             
             const dayPlans = state.dailyPlans.filter(p => p.date === state.viewDate);
-            
-            // 需求2：移除 maxDate 限制，允许向未来切换
             
             let plansHtml = dayPlans.length > 0 ? dayPlans.map(plan => {
                 const currentProgress = getPlanProgress(plan.id, state.viewDate);
@@ -1309,7 +1369,6 @@
                 return `<div class="bg-white rounded-[20px] p-5 border border-slate-100 mb-4 relative group transition-all hover:shadow-lg shadow-sm"><div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="actions.openEditGoal('${g.id}')" class="text-slate-300 hover:text-indigo-500"><i data-lucide="pencil" class="w-3 h-3"></i></button><button onclick="actions.delGoal('${g.id}')" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div><div class="flex justify-between items-center mb-4"><div class="flex items-center gap-2"><span class="font-bold text-lg text-slate-800">${g.name}</span>${isQtyDone ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full border border-yellow-200 font-bold">已达成</span>' : ''}</div><div class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded font-medium">目标: ${g.targetQty} ${g.unit}</div></div>${renderProgressBar(g.accumulatedWords, g.targetWords, "字数进度")}<div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-50"><span class="text-xs font-bold text-slate-400">数量进度</span><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-yellow-400 rounded-full" style="width: ${qtyPct}%"></div></div><div class="text-xs font-mono text-slate-500 w-12 text-right">${g.currentQty}/${g.targetQty}</div><button onclick="actions.addQty('${g.id}')" class="w-8 h-8 bg-green-50 text-green-600 rounded-full flex items-center justify-center font-bold text-xs hover:bg-green-100 transition-colors shadow-sm border border-green-100">+1</button></div></div>`;
             }).join('');
 
-            // 修正：日期选择器添加 max 属性
             const maxDateStr = MAX_FUTURE_DATE_STR;
 
             return `<div class="flex flex-col h-full bg-gray-50 overflow-hidden"><div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative"><div class="flex justify-between items-center"><div><div class="text-xs text-indigo-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">🎓 ${state.globalGoalType}倒计时</div><div class="text-2xl font-bold tracking-tight">${days !== null ? `还有 <span class="text-yellow-400 font-black text-3xl mx-1">${days}</span> 天` : '点击设置'}</div></div><button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button></div>
@@ -1336,7 +1395,19 @@
                 <button onclick="actions.saveGradSettings()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform mt-2">保存设置</button>
             </div>` : ''}
             
-            </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6"><div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button><div class="flex flex-col items-center cursor-pointer group" onclick="actions.goToToday()"><span class="text-lg font-bold text-slate-800">${dateStr}</span>${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 回到今天</span>`}</div><button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button></div><div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4>
+            </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6">
+            
+            <!-- 需求 1：更新后的日期条 -->
+            <div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50">
+                <button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button>
+                <div class="flex flex-col items-center cursor-pointer group" onclick="actions.openMainCalendar()">
+                    <span class="text-lg font-bold text-slate-800">${dateStr}</span>
+                    ${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> 切换日期</span>`}
+                </div>
+                <button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button>
+            </div>
+
+            <div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4>
             
             <p id="daily-quote-display" class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p>
             
@@ -1370,7 +1441,6 @@
         function renderAddEntry() {
             const goalOptions = state.customGoals.map(g => `<option value="${g.id}" ${g.id === state.formData.linkedGoalId ? 'selected' : ''}>${g.name} (上次结束: ${getLastCountForGoal(g.id)})</option>`).join('');
             const net = (parseInt(state.formData.endCount)||state.formData.startCount) - state.formData.startCount;
-            // 修正：日期选择器添加 max 属性
             const maxDateStr = MAX_FUTURE_DATE_STR;
 
             return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-32"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" max="${maxDateStr}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
@@ -1393,18 +1463,15 @@
             return `<div class="p-4 bg-gray-50 h-full overflow-y-auto pb-32"><div class="flex justify-between items-center mb-6 px-1"><h2 class="font-bold text-xl text-slate-800">历史足迹</h2><span class="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-20">空空如也，去写下第一笔吧！</p>'}</div>`;
         }
 
-        // --- 文章状态页面 (升级版: 折叠详情) ---
         function renderArticles() {
             let articleList = '';
             if (state.articles.length > 0) {
                 articleList = state.articles.map(article => {
-                    // 1. 进度计算
                     const milestones = article.milestones || [];
                     const totalSteps = milestones.length > 0 ? milestones.length : 1;
                     const completedSteps = milestones.filter(m => m.date).length;
                     const progressPct = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
 
-                    // 2. 时间线渲染 (先排序)
                     const sortedMilestones = [...milestones].sort((a,b) => {
                         if(!a.date) return 1; 
                         if(!b.date) return -1;
@@ -1431,7 +1498,6 @@
 
                     return `
                     <div class="bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] mb-5 border border-slate-50 relative group transition-all duration-300">
-                        <!-- 概览区域 (始终显示) -->
                         <div class="mb-4">
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex items-center flex-wrap gap-2">
@@ -1446,8 +1512,6 @@
                             <h3 class="text-lg font-bold text-slate-800 leading-tight mb-1 pr-4">${article.title}</h3>
                             <div class="text-xs text-slate-400 font-medium">${article.journal || '未填写期刊/来源'}</div>
                         </div>
-
-                        <!-- 进度条 + 展开按钮 -->
                         <div class="flex items-end gap-3 mb-2">
                             <div class="flex-1">
                                 <div class="flex justify-between text-[10px] text-slate-400 mb-1">
@@ -1462,13 +1526,10 @@
                                 <i data-lucide="chevron-down" class="w-5 h-5"></i>
                             </button>
                         </div>
-
-                        <!-- 详情区域 (默认折叠) -->
                         <div id="article-details-${article.id}" class="hidden pt-4 mt-4 border-t border-slate-50 animate-fade-in">
                             <div class="pl-1 mb-2">
                                 ${timelineHtml}
                             </div>
-
                             ${(article.reviewNotes || article.notes) ? `
                             <div class="bg-gray-50 rounded-xl p-3 space-y-3 mt-4 border border-slate-100">
                                 ${article.reviewNotes ? `
@@ -1498,11 +1559,9 @@
             if (!app) return;
             cleanOldPlans();
             
-            // 每次 Render 主页面时，确保日历组件也处于正确状态 (主要是隐藏)
-            // 但如果仅仅是切换Tab，我们不需要重置日历。日历状态由 actions.openCalendar/closeCalendar 管理。
-            // 只有当 View 彻底改变 (如 login) 时才需要特别注意。
-            // 为了安全起见，我们在这里也调用一次 renderCalendarComponent 以保持同步（主要是防止 DOM 被 wipe 后的状态不一致）
+            // 同步渲染两个日历组件 (文章日历 & 需求 1 的主日历)
             renderCalendarComponent();
+            renderMainCalendarComponent();
 
             let htmlContent = '';
             
@@ -1514,7 +1573,7 @@
                 } else {
                     let content = '';
                     if (state.activeTab === 'dashboard') content = renderDashboard();
-                    else if (state.activeTab === 'rank') content = renderRank(); // 榜单内容渲染保持不变
+                    else if (state.activeTab === 'rank') content = renderRank();
                     else if (state.activeTab === 'add') content = renderAddEntry();
                     else if (state.activeTab === 'articles') content = renderArticles();
                     else content = renderHistory(); 
@@ -1522,7 +1581,6 @@
                     const sidebar = state.showSidebar ? `<div class="fixed inset-0 bg-black/50 z-40 animate-fade-in" onclick="actions.toggleSidebar()"></div><div class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl p-0 flex flex-col animate-slide-up" style="animation-direction: normal; animation-name: slide-right;"><div class="p-6 border-b border-slate-100 bg-slate-50"><div class="flex items-center gap-3 mb-4"><img src="${state.user.avatar}" class="w-14 h-14 rounded-full border-2 border-white shadow-sm"><div><h3 class="font-bold text-slate-800">${state.user.username}</h3><button onclick="actions.editProfile()" class="text-xs text-indigo-500">编辑资料</button></div></div><div class="bg-white p-3 rounded-lg border border-slate-200"><div class="text-xs text-slate-400 mb-1">累计产出</div><div class="text-sm font-bold text-slate-800">${state.entries.reduce((a,b)=>a+b.dailyCount,0).toLocaleString()} 字</div></div></div><div class="p-2 space-y-1"><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl"><span class="text-indigo-500">${Icons.Switch}</span> 切换账号</button><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl"><span class="text-red-500">${Icons.LogOut}</span> 退出登录</button></div></div>` : '';
 
                     let modals = '';
-                    // ... Plan & Goal Modals ...
                     if (state.showPlanModal) {
                         const isEdit = !!state.editingPlanId;
                         const options = state.customGoals.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
@@ -1541,8 +1599,6 @@
                     if (state.showProfileModal) {
                         modals += `<div class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-6" onclick="actions.closeProfile()"><div class="bg-white rounded-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()"><h3 class="font-bold text-lg mb-4">编辑资料</h3><div class="text-center mb-4"><img src="${state.tempProfile.avatar}" class="w-20 h-20 rounded-full mx-auto mb-2"><button onclick="actions.randAvatar()" class="text-xs text-indigo-500">换个头像</button></div><input value="${state.tempProfile.name}" oninput="actions.setTempProfile('name',this.value)" class="w-full border p-2 rounded mb-4 text-center font-bold"><button onclick="actions.saveProfile(event)" class="w-full primary-gradient text-white py-3 rounded-xl">保存</button></div></div>`;
                     }
-                    
-                    // --- 增强版文章状态添加模态框 ---
                     if (state.showArticleModal) {
                         const d = state.articleFormData;
                         modals += `
@@ -1554,7 +1610,6 @@
                                 </div>
                                 <form onsubmit="actions.saveArticle(event)" class="space-y-5">
                                     <div class="space-y-4">
-                                        <!-- 基本信息区 -->
                                         <div>
                                             <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">基本信息 *</label>
                                             <div class="flex gap-2 mb-2">
@@ -1574,8 +1629,6 @@
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <!-- 关键节点区 -->
                                         <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                                             <div class="flex justify-between items-center mb-3">
                                                 <p class="text-xs font-bold text-indigo-400 uppercase flex items-center gap-1">${Icons.Cal} 关键时间节点</p>
@@ -1584,37 +1637,25 @@
                                                     <button type="button" onclick="actions.addMilestone()" class="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded shadow-sm flex items-center gap-1 hover:bg-indigo-700">${Icons.Plus} 自定义</button>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- 节点列表容器 -->
-                                            <div id="milestone-list-container" class="space-y-2 max-h-60 overflow-y-auto milestones-scroll pr-1">
-                                                <!-- Content populated by renderMilestonesList() -->
-                                            </div>
-                                            
+                                            <div id="milestone-list-container" class="space-y-2 max-h-60 overflow-y-auto milestones-scroll pr-1"></div>
                                             <p class="text-[10px] text-indigo-300 mt-2 text-center">提示：填写日期后，上方状态会自动更新（除非手动修改过）</p>
                                         </div>
-
-                                        <!-- 备注区 -->
                                         <div>
                                             <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">审稿人意见摘要</label>
                                             <textarea oninput="actions.setArticleForm('reviewNotes',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 h-24 resize-none text-sm" placeholder="记录审稿人主要意见...">${d.reviewNotes}</textarea>
                                         </div>
-                                        
                                         <div>
                                             <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">文章整体备注</label>
                                             <textarea oninput="actions.setArticleForm('notes',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 h-20 resize-none text-sm" placeholder="合作者情况、基金号等...">${d.notes}</textarea>
                                         </div>
                                     </div>
-
                                     <button class="w-full primary-gradient text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">保存文章状态</button>
                                 </form>
                             </div>
                         </div>`;
                     }
-
-                    // 修改底部导航栏，只有三个按钮
                     const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('articles')" class="flex flex-col items-center gap-1 ${state.activeTab==='articles'?'text-indigo-600':'text-slate-400'}">${Icons.File}<span class="text-[10px]">文章</span></button></nav>`;
 
-                    // 修正：App logo 使用 ./icon-180.png
                     htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30">
                         <div class="flex items-center gap-3">
                             <button onclick="actions.toggleSidebar()" class="active:scale-95 transition-transform flex items-center" title="菜单">
@@ -1632,41 +1673,63 @@
             app.innerHTML = htmlContent;
             if (window.lucide) lucide.createIcons();
 
-            // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它 (Bug 1 Fix)
-            const loadingScreen = document.getElementById('app-loading');
-            if (loadingScreen && state.view !== 'loading') {
-                loadingScreen.classList.add('fade-out');
-                // 动画 600ms 后从 DOM 移除，避免遮挡点击
-                setTimeout(() => {
-                    if (loadingScreen.parentElement) loadingScreen.remove();
-                }, 600);
+            // 需求 2：渲染完成后，控制加载层和主应用层的显示隐藏
+            const initScreen = document.getElementById('app-init-screen');
+            const appMain = document.getElementById('app-main');
+
+            if (state.view !== 'loading') {
+                if (initScreen) {
+                    initScreen.classList.add('fade-out');
+                    // 动画结束后移除或隐藏
+                    setTimeout(() => {
+                        initScreen.style.display = 'none';
+                    }, 500);
+                }
+                if (appMain) {
+                    appMain.style.display = 'block';
+                    // 稍微延时加 visible class 以触发 CSS transition
+                    setTimeout(() => appMain.classList.add('visible'), 50);
+                }
+            } else {
+                // 如果是 Loading 状态
+                if (initScreen) initScreen.style.display = 'flex';
+                if (appMain) appMain.style.display = 'none';
             }
         }
         
-        // --- 初始化入口 ---
+        // --- 需求 2：初始化入口 ---
         function initApp() {
             try {
-                // Bug 1 Fix: 确保在第一帧渲染前不移除 loading
+                // 显示初始化层
+                const initScreen = document.getElementById('app-init-screen');
+                if (initScreen) initScreen.style.display = 'flex';
+                
+                // 执行数据加载
                 requestAnimationFrame(() => {
                     const savedUser = Storage.get('phd_current_user', null);
-                    // 初始化加载心理能量站文案
                     pickEnergyQuote();
-                    // 启动自动轮播
                     startEnergyQuoteAutoRefresh();
                     
-                    if (savedUser) { loadLocalUser(savedUser); } else { state.view = 'login'; render(); }
+                    if (savedUser) { 
+                        loadLocalUser(savedUser); 
+                    } else { 
+                        state.view = 'login'; 
+                        render(); 
+                    }
                 });
-            } catch (error) { console.error("Init failed:", error); state.view = 'login'; render(); }
+            } catch (error) { 
+                console.error("Init failed:", error); 
+                state.view = 'login'; 
+                render(); 
+            }
         }
 
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
         
-        // 保底逻辑：如果 2 秒还没移除 loading，强制进入 (移除旧的 setTimeout 阻塞)
-        // 这里只是为了防止异常情况，正常流程由 initApp -> render 控制
+        // 保底逻辑
         setTimeout(() => { 
-            const loadingScreen = document.getElementById('app-loading');
-            if (loadingScreen && !loadingScreen.classList.contains('fade-out')) { 
-                // 如果还在 loading 状态，强制尝试渲染登录页
+            const initScreen = document.getElementById('app-init-screen');
+            if (initScreen && !initScreen.classList.contains('fade-out')) { 
                 if(state.view === 'loading') {
                      state.view = 'login'; 
                      render();
