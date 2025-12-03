@@ -8,23 +8,15 @@
     <!-- iOS Web App 全屏模式支持 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
-    <!-- 修改点 1：桌面图标下方的名称改为 "PhD写作助手" -->
-    <meta name="apple-mobile-web-app-title" content="PhD写作助手">
+    <meta name="apple-mobile-web-app-title" content="博士写作助手">
 
-    <title>博士写作助手</title>
+    <title>博士写作助手 - 暖心日记版</title>
     
-    <!-- 修改点 2：增加 ?v=2 强制刷新缓存，确保 iOS 重新读取图片 -->
-    <!-- 注意：请确保 GitHub 上传的文件名真的是 icon-180.jpg (小写) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icon-180.jpg?v=2">
-    <link rel="icon" type="image/jpeg" sizes="192x192" href="icon-192.jpg?v=2">
-    <!-- 增加一个通用图标引用作为保底 -->
-    <link rel="shortcut icon" href="icon-192.jpg?v=2">
-
-    <!-- 主题色 -->
-    <meta name="theme-color" content="#4F46E5">
+    <!-- 图标支持 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjogI2VlZjJmZjsgYm9yZGVyLXJhZGl1czDogMjRweDsiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlZWYyZmYiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1zaXplPSIyNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuMzVlbSI+8J+OhTwvdGV4dD48L3N2Zz4=">
     
-    <!-- 关键样式直接内联，确保加载画面零延迟显示 -->
+    <!-- 关键样式直接内联 -->
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
@@ -58,6 +50,7 @@
         .tag-cyan { background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%); }
         .tag-green { background: linear-gradient(135deg, #34d399 0%, #10b981 100%); }
         .tag-orange { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+        .tag-gray { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); }
 
         .progress-track { background-color: rgba(255,255,255,0.6); border-radius: 9999px; height: 14px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); }
         .progress-jelly { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #7c3aed 0%, #4f46e5 100%); position: relative; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
@@ -74,28 +67,41 @@
         .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: #6366F1; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* Loading Screen 样式优化：绝对定位，确保覆盖全屏 */
-        #loading-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #f9fafb; z-index: 9999; color: #94a3b8; gap: 0.75rem; }
+        /* Loading Screen specific styles to ensure visibility before Tailwind loads */
+        #loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: #94a3b8; gap: 0.75rem; background-color: #f9fafb; }
         #loading-text { font-size: 0.75rem; }
+        
+        /* Timeline Connector */
+        .timeline-line { position: absolute; left: 6px; top: 12px; bottom: -20px; width: 2px; background-color: #e2e8f0; z-index: 0; }
+        .group:last-child .timeline-line { display: none; }
+        
+        /* Article Type Tags */
+        .badge-journal { background-color: #eff6ff; color: #3b82f6; border: 1px solid #dbeafe; }
+        .badge-conf { background-color: #f5f3ff; color: #8b5cf6; border: 1px solid #ede9fe; }
+        .badge-project { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
+        .badge-grant { background-color: #fff7ed; color: #f97316; border: 1px solid #ffedd5; }
+        .badge-book { background-color: #fff1f2; color: #be123c; border: 1px solid #ffe4e6; }
+        .badge-other { background-color: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+        
+        /* Scrollbar for milestones */
+        .milestones-scroll::-webkit-scrollbar { width: 4px; }
+        .milestones-scroll::-webkit-scrollbar-track { background: transparent; }
+        .milestones-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 挂载点 -->
     <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
-        <!-- 初始加载画面：这是静态 HTML，不依赖任何脚本，保证秒开 -->
+        <!-- 初始加载画面 -->
         <div id="loading-screen">
             <div class="spinner"></div>
             <p id="loading-text">正在整理书桌...</p>
         </div>
     </div>
 
-    <!-- 修复 2：使用 defer 属性，防止脚本阻塞页面渲染；更换更快的 CDN -->
-    <!-- Tailwind CSS (核心样式库) -->
-    <script src="https://cdn.tailwindcss.com" defer></script>
-    
-    <!-- Lucide Icons (图标库) - 换用 jsDelivr 加速 -->
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <!-- 关键脚本 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- 核心逻辑 -->
     <script>
@@ -141,6 +147,54 @@
             { username: "深夜战神", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Milo", wordCount: 1800 },
             { username: "早起鸟", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Bella", wordCount: 500 }
         ];
+        
+        // --- 核心配置：文章类型、推荐节点、提示语 ---
+        const ARTICLE_CONFIG = {
+            '期刊论文': {
+                titlePlaceholder: '例如：关于 XX 的实证研究',
+                journalLabel: '期刊/会议名称',
+                journalPlaceholder: '例如：Journal of Finance',
+                stages: ['初稿准备', '已投稿', '审稿中', '一审返回', '返修中', '二审中', '已接收', '在线发表', '纸刊见刊'],
+                milestones: ['完成初稿', '投稿', '审稿中', '一审返回', '返修提交', '二审返回', '再次返修提交', '接受通知', '在线发表', '纸刊见刊']
+            },
+            '会议论文': {
+                titlePlaceholder: '例如：深度学习优化算法研究',
+                journalLabel: '会议名称',
+                journalPlaceholder: '例如：ICML 2025',
+                stages: ['初稿准备', '已投稿', '审稿中', '录用通知', '终稿提交', '注册参会', '汇报完成'],
+                milestones: ['完成初稿', '投稿', '审稿中', '录用通知', '终稿提交', '注册参会', '会议报告完成']
+            },
+            '项目': {
+                titlePlaceholder: '例如：XX 基金青年项目',
+                journalLabel: '申报单位/来源',
+                journalPlaceholder: '例如：国家自然科学基金委',
+                stages: ['立项申报中', '评审中', '已立项', '中期检查', '验收/结题中', '已结题'],
+                milestones: ['立项申报材料完成', '提交立项申请', '立项评审', '立项获批', '经费到账', '中期检查资料提交', '中期检查通过', '结题材料提交', '结题通过']
+            },
+            '课题': {
+                titlePlaceholder: '例如：博士学位论文课题',
+                journalLabel: '课题来源',
+                journalPlaceholder: '例如：导师横向课题',
+                stages: ['开题申请', '开题论证', '中期检查', '阶段成果整理', '结题申请', '结题通过'],
+                milestones: ['开题报告完成', '开题论证', '中期检查', '阶段成果形成', '结题材料提交', '结题通过']
+            },
+            '著作': {
+                titlePlaceholder: '例如：中国传统建筑研究',
+                journalLabel: '出版社',
+                journalPlaceholder: '例如：科学出版社',
+                stages: ['选题确定', '写作样章', '出版社立项', '合同签订', '全稿完成', '三审通过', '排版校对', '出版发行'],
+                milestones: ['选题确定', '样章完成', '出版社立项', '合同签订', '全稿交付', '三审通过', '排版校对', '出版发行']
+            },
+            '其他': {
+                titlePlaceholder: '例如：学术讲座/短期访学',
+                journalLabel: '相关机构',
+                journalPlaceholder: '备注说明',
+                stages: ['计划中', '进行中', '暂缓', '已完成'],
+                milestones: ['制定计划', '执行中', '阶段反馈', '调整方案', '完成']
+            }
+        };
+
+        const ARTICLE_TYPES = Object.keys(ARTICLE_CONFIG);
 
         // --- 状态管理 ---
         const state = {
@@ -150,6 +204,7 @@
             entries: [],
             dailyPlans: [], 
             customGoals: [],
+            articles: [], 
             totalWordGoal: 100000,
             graduationDate: '',
             currentSession: null, 
@@ -166,6 +221,8 @@
             showLogoutModal: false,
             showProfileModal: false,
             showGradSettings: false,
+            showArticleModal: false, 
+            articleStatusTouched: false, 
             viewDate: new Date().toISOString().split('T')[0],
             dailyQuote: psychQuotes[0],
             formData: { 
@@ -182,7 +239,18 @@
             entryDrafts: {}, 
             newGoalData: { name: '', targetQty: 1, unit: '篇', targetWords: 10000 },
             planFormData: { target: 1000, content: '', linkedGoalId: 'thesis' },
-            tempProfile: { name: '', avatar: '' }
+            tempProfile: { name: '', avatar: '' },
+            // 文章表单数据
+            articleFormData: {
+                id: null,
+                title: '',
+                journal: '',
+                type: '期刊论文',
+                status: '',
+                milestones: [], 
+                reviewNotes: '',
+                notes: ''
+            }
         };
 
         // --- 安全的本地存储封装 ---
@@ -238,6 +306,23 @@
                 state.entries = Array.isArray(data.entries) ? data.entries : [];
                 state.customGoals = Array.isArray(data.customGoals) ? data.customGoals : [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
                 state.dailyPlans = Array.isArray(data.dailyPlans) ? data.dailyPlans : [];
+                
+                // 数据兼容处理
+                let loadedArticles = Array.isArray(data.articles) ? data.articles : [];
+                state.articles = loadedArticles.map(a => {
+                    if (!a.milestones && a.submissionDate) {
+                        const ms = [{ label: '投稿', date: a.submissionDate, note: '' }];
+                        if (a.reviewDate) ms.push({ label: '一审返回', date: a.reviewDate, note: '' });
+                        if (a.revisionDate) ms.push({ label: '返修提交', date: a.revisionDate, note: '' });
+                        if (a.acceptDate) ms.push({ label: '正式录用', date: a.acceptDate, note: '' });
+                        if (a.customMilestones) {
+                            a.customMilestones.forEach(c => ms.push({ label: c.label, date: c.date, note: c.note }));
+                        }
+                        a.milestones = ms;
+                    }
+                    return a;
+                });
+
                 state.totalWordGoal = data.totalWordGoal || 100000;
                 
                 let safeGradDate = '';
@@ -247,7 +332,6 @@
                 }
                 state.graduationDate = safeGradDate;
                 state.currentSession = Storage.get(`phd_session_${username}`, null);
-                state.entryDrafts = {};
                 
                 Storage.set('phd_current_user', username);
                 state.view = 'app';
@@ -263,50 +347,22 @@
 
         function saveUserData() {
             if (!state.user) return;
-            // 使用 setTimeout 将存储操作移出主线程，减少卡顿感
             setTimeout(() => {
-                const data = { entries: state.entries, customGoals: state.customGoals, dailyPlans: state.dailyPlans, totalWordGoal: state.totalWordGoal, graduationDate: state.graduationDate };
+                const data = { 
+                    entries: state.entries, 
+                    customGoals: state.customGoals, 
+                    dailyPlans: state.dailyPlans, 
+                    totalWordGoal: state.totalWordGoal, 
+                    graduationDate: state.graduationDate,
+                    articles: state.articles
+                };
                 Storage.set(`phd_data_${state.user.username}`, data);
                 if (state.currentSession) Storage.set(`phd_session_${state.user.username}`, state.currentSession);
                 else Storage.remove(`phd_session_${state.user.username}`);
             }, 0);
         }
 
-        // --- 排行榜 (模拟) ---
-        // 优化 2: 移除 await，改为不阻塞 UI 的静默更新
-        function syncLeaderboard() {
-            if (state.loadingLeaderboard) return;
-            // 模拟后台更新，不阻塞 UI
-            setTimeout(() => {
-                let list = [...MOCK_LEADERBOARD];
-                if (state.user) {
-                    const today = getTodayStr();
-                    const myWords = state.entries.reduce((acc, e) => e.date === today ? acc + e.dailyCount : acc, 0);
-                    const existingIdx = list.findIndex(u => u.username === state.user.username);
-                    if (existingIdx >= 0) {
-                        list[existingIdx].wordCount = myWords;
-                    } else {
-                        list.push({ username: state.user.username, avatar: state.user.avatar, wordCount: myWords });
-                    }
-                }
-                state.leaderboard = list.sort((a,b) => b.wordCount - a.wordCount);
-                // 只有在当前查看榜单时才重绘，否则静默更新数据即可
-                if (state.activeTab === 'rank') render();
-            }, 100); 
-        }
-        
-        // 用于榜单页面的主动刷新
-        function fetchLeaderboard() {
-            state.loadingLeaderboard = true;
-            render();
-            setTimeout(() => {
-                syncLeaderboard();
-                state.loadingLeaderboard = false;
-                render();
-            }, 500);
-        }
-
-        // --- 辅助函数 ---
+        // --- 业务辅助函数 ---
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         
         const calcStats = (targetDate) => {
@@ -349,11 +405,12 @@
         };
 
         const cleanOldPlans = () => {
-            const today = getTodayStr();
-            if (state.dailyPlans && state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
-                state.dailyPlans = [];
-                saveUserData();
-            }
+            // 移除旧的清理逻辑，因为现在允许保留历史计划
+            // const today = getTodayStr();
+            // if (state.dailyPlans && state.dailyPlans.length > 0 && state.dailyPlans[0].date !== today) {
+            //     state.dailyPlans = [];
+            //     saveUserData();
+            // }
         };
 
         const getGoalTagStyle = (name) => {
@@ -366,14 +423,100 @@
             return { emoji: '📌', cls: 'tag-orange' }; 
         };
 
+        const getArticleTypeClass = (type) => {
+            switch(type) {
+                case '期刊论文': return 'badge-journal';
+                case '会议论文': return 'badge-conf';
+                case '项目': return 'badge-project';
+                case '课题': return 'badge-project';
+                case '著作': return 'badge-book';
+                case '其他': return 'badge-other';
+                default: return 'badge-journal';
+            }
+        };
+
+        // --- 排序节点的逻辑 ---
+        function sortMilestones(milestones) {
+            return milestones.sort((a,b) => {
+                if(!a.date && !b.date) return 0;
+                if(!a.date) return 1; // 无日期的排后面
+                if(!b.date) return -1;
+                return new Date(a.date) - new Date(b.date);
+            });
+        }
+
+        // --- 智能状态更新逻辑 ---
+        function updateStatusFromMilestones() {
+            if (state.articleStatusTouched) return; 
+
+            const milestones = state.articleFormData.milestones || [];
+            const withDate = milestones.filter(m => m.date);
+            
+            if (withDate.length === 0) return;
+
+            withDate.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const latest = withDate[withDate.length - 1];
+            const suggested = (latest.label || '').trim();
+            
+            if (!suggested) return;
+
+            state.articleFormData.status = suggested;
+            const inputEl = document.getElementById('article-status-input');
+            if (inputEl) inputEl.value = suggested;
+        }
+
+        // --- 局部渲染 DOM 辅助函数 ---
+        function renderMilestonesList() {
+            const container = document.getElementById('milestone-list-container');
+            if(!container) return; 
+
+            const ms = state.articleFormData.milestones;
+            
+            const html = ms.map((m, idx) => `
+                <div class="border border-slate-200 rounded-xl p-3 bg-white mb-2 transition-all hover:shadow-sm group">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="actions.toggleMilestoneNote(${idx})" class="text-slate-400 hover:text-indigo-500 w-6 h-6 flex items-center justify-center transition-transform ${m.expanded ? 'rotate-180 text-indigo-500' : ''}">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                        
+                        <input type="text" placeholder="节点名称" value="${m.label}" oninput="actions.updateMilestoneText(${idx}, 'label', this.value)" class="flex-1 text-sm font-bold text-slate-700 outline-none bg-transparent placeholder-slate-300">
+                        
+                        <input type="date" value="${m.date}" onchange="actions.updateMilestoneDate(${idx}, this.value)" class="text-xs text-slate-500 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500 w-28">
+                        
+                        <button type="button" onclick="actions.removeMilestone(${idx})" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                    
+                    <div id="ms-note-${idx}" class="${m.expanded ? '' : 'hidden'} mt-3 pt-2 border-t border-slate-100 animate-fade-in">
+                        <textarea placeholder="添加备注 (如：审稿人意见要点、沟通记录...)" oninput="actions.updateMilestoneText(${idx}, 'note', this.value)" class="w-full text-xs text-slate-600 bg-slate-50 rounded-lg p-2 outline-none border border-transparent focus:border-indigo-100 resize-none h-16 block">${m.note}</textarea>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function updateArticleTypeUI(type) {
+            const config = ARTICLE_CONFIG[type] || ARTICLE_CONFIG['期刊论文'];
+            
+            const titleInput = document.getElementById('article-title-input');
+            const journalInput = document.getElementById('article-journal-input');
+            const journalLabel = document.getElementById('article-journal-label');
+            const datalist = document.getElementById('stage-options');
+
+            if(titleInput) titleInput.placeholder = config.titlePlaceholder;
+            if(journalInput) journalInput.placeholder = config.journalPlaceholder;
+            if(journalLabel) journalLabel.innerText = config.journalLabel + " *";
+            
+            if(datalist) {
+                datalist.innerHTML = config.stages.map(s => `<option value="${s}">${s}</option>`).join('');
+            }
+        }
+
         // --- 交互 Action ---
         window.actions = {
-            auth: (e) => { 
-                e.preventDefault(); 
-                const u = e.target.username.value.trim() || "匿名博士"; 
-                loadLocalUser(u); 
-            },
-            toggleAuth: () => { },
+            // ... Auth & System ...
+            auth: (e) => { e.preventDefault(); const u = e.target.username.value.trim() || "匿名博士"; loadLocalUser(u); },
             askLogout: () => { state.showSidebar = false; state.showLogoutModal = true; render(); },
             confirmLogout: () => { Storage.remove('phd_current_user'); state.user = null; state.showLogoutModal = false; state.view = 'login'; render(); },
             cancelLogout: () => { state.showLogoutModal = false; render(); },
@@ -383,58 +526,38 @@
                 if(t==='add' && !state.currentSession) { 
                     const defaultGoalId = state.customGoals.length > 0 ? state.customGoals[0].id : 'thesis';
                     const lastCount = getLastCountForGoal(defaultGoalId);
-                    state.formData = {
-                        date: getTodayStr(), 
-                        linkedGoalId: defaultGoalId,
-                        startCount: lastCount,
-                        endCount: lastCount, 
-                        chapter: '', mood: 'neutral', reflection: '', 
-                        duration: '', 
-                        durationNum: 0 
-                    };
+                    state.formData = { date: getTodayStr(), linkedGoalId: defaultGoalId, startCount: lastCount, endCount: lastCount, chapter: '', mood: 'neutral', reflection: '', duration: '', durationNum: 0 };
                 } 
-                if(t==='rank') fetchLeaderboard(); 
+                if(t==='rank') { state.loadingLeaderboard = true; render(); setTimeout(() => { state.loadingLeaderboard = false; render(); }, 500); } 
                 render(); 
             },
             toggleSidebar: () => { state.showSidebar = !state.showSidebar; render(); },
             
+            // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
+            // 允许向未来滚动，不设限
             changeDate: (days) => { 
-                const current = parseSafeDate(state.viewDate) || new Date();
-                current.setDate(current.getDate() + days);
+                const current = parseSafeDate(state.viewDate) || new Date(); 
+                current.setDate(current.getDate() + days); 
                 state.viewDate = current.toISOString().split('T')[0]; 
                 render(); 
             },
             goToToday: () => { state.viewDate = getTodayStr(); render(); },
             
-            openAddPlan: () => { 
-                state.editingPlanId = null;
-                const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : '';
-                state.planFormData = { target: 1000, content: '', linkedGoalId: defaultGoal };
-                state.showPlanModal = true; 
-                render(); 
-            },
-            openEditPlan: (id) => {
-                const plan = state.dailyPlans.find(p => p.id === id);
-                if(plan) { state.editingPlanId = id; state.planFormData = { ...plan }; state.showPlanModal = true; render(); }
-            },
+            openAddPlan: () => { state.editingPlanId = null; const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : ''; state.planFormData = { target: 1000, content: '', linkedGoalId: defaultGoal }; state.showPlanModal = true; render(); },
+            openEditPlan: (id) => { const plan = state.dailyPlans.find(p => p.id === id); if(plan) { state.editingPlanId = id; state.planFormData = { ...plan }; state.showPlanModal = true; render(); } },
             closePlanModal: () => { state.showPlanModal = false; render(); },
             setPlanForm: (f, v) => state.planFormData[f] = v,
             savePlan: (e) => {
                 e.preventDefault();
-                const newPlan = {
-                    ...state.planFormData,
-                    id: state.editingPlanId || Date.now().toString(),
-                    date: state.viewDate
-                };
+                const newPlan = { ...state.planFormData, id: state.editingPlanId || Date.now().toString(), date: state.viewDate };
                 if (state.editingPlanId) state.dailyPlans = state.dailyPlans.map(p => p.id === state.editingPlanId ? newPlan : p);
                 else state.dailyPlans.push(newPlan);
                 state.showPlanModal = false; saveUserData(); render();
             },
-            deletePlan: (id) => {
-                if(confirm("确定删除这个目标吗？")) { state.dailyPlans = state.dailyPlans.filter(p => p.id !== id); saveUserData(); render(); }
-            },
+            deletePlan: (id) => { if(confirm("确定删除这个目标吗？")) { state.dailyPlans = state.dailyPlans.filter(p => p.id !== id); saveUserData(); render(); } },
 
+            // ... Work Session ...
             start: (planId) => { 
                 const plan = state.dailyPlans.find(p => p.id === planId);
                 const linkedGoalId = plan ? plan.linkedGoalId : '';
@@ -443,10 +566,7 @@
                 saveUserData(); 
                 render(); 
             },
-            adjustStart: () => {
-                const newStart = prompt("修正开始字数:", state.currentSession.startCount);
-                if (newStart !== null && !isNaN(newStart)) { state.currentSession.startCount = parseInt(newStart); saveUserData(); render(); }
-            },
+            adjustStart: () => { const newStart = prompt("修正开始字数:", state.currentSession.startCount); if (newStart !== null && !isNaN(newStart)) { state.currentSession.startCount = parseInt(newStart); saveUserData(); render(); } },
             adjustManualStart: (d) => {
                 const oldStart = parseInt(state.formData.startCount) || 0;
                 const newStart = Math.max(0, oldStart + d);
@@ -476,14 +596,6 @@
                     const lastCount = getLastCountForGoal(v);
                     state.formData.startCount = lastCount;
                     state.formData.endCount = lastCount;
-                    const todayPlan = state.dailyPlans.find(p => p.linkedGoalId === v);
-                    state.formData.chapter = todayPlan ? todayPlan.content : '';
-                    const startInput = document.querySelector('input[name="startCount"]');
-                    const endInput = document.querySelector('input[name="endCount"]');
-                    const chapInput = document.querySelector('input[name="chapter"]');
-                    if(startInput) startInput.value = lastCount;
-                    if(endInput) endInput.value = lastCount;
-                    if(chapInput) chapInput.value = state.formData.chapter;
                 }
             },
             updateDuration: (val) => {
@@ -494,7 +606,6 @@
                 if(el) el.innerText = val > 0 ? display : '0 小时';
             },
 
-            // 优化 2：解决卡顿的核心函数
             end: (e) => {
                 e.preventDefault();
                 const isFocus = !!state.currentSession;
@@ -529,15 +640,11 @@
                         goalName = g.name;
                         if(g.unit === '字') g.current = (g.current || 0) + diff;
                     }
-                    delete state.entryDrafts[linkedGoalId];
                 }
                 
                 const recordDate = state.formData.date || getTodayStr();
-                
                 let finalDuration = state.formData.duration;
-                if(isFocus) {
-                    finalDuration = Math.round((Date.now() - state.currentSession.start)/60000) + "m";
-                }
+                if(isFocus) finalDuration = Math.round((Date.now() - state.currentSession.start)/60000) + "m";
 
                 state.entries.push({ 
                     id: Date.now(), date: recordDate, startCount: start, endCount: end, dailyCount: diff, 
@@ -551,15 +658,14 @@
                 state.feedbackData = { diff, linkedGoalName: goalName, encourageMsg }; 
                 state.showFeedback = true;
                 
-                // 性能优化关键：先渲染 UI，后保存数据
                 render(); 
                 saveUserData(); 
-                syncLeaderboard(); // 移除 await，变成静默更新
             },
             cancelSession: () => { if(confirm("放弃本次专注？")) { state.currentSession = null; saveUserData(); render(); } },
             setMood: (m) => { state.formData.mood = m; render(); },
             closeFeedback: () => { state.showFeedback = false; state.activeTab = 'history'; render(); },
             
+            // ... Goals ...
             openAddGoal: () => { state.editingGoalId = null; state.newGoalData = { name: '', targetQty: 1, unit: '篇', targetWords: 50000 }; state.showGoalModal = true; render(); },
             openEditGoal: (id) => { const g = state.customGoals.find(x => x.id === id); if (g) { state.editingGoalId = id; state.newGoalData = { ...g }; state.showGoalModal = true; render(); } },
             setNewGoal: (f, v) => state.newGoalData[f] = v,
@@ -573,18 +679,13 @@
             delGoal: (id) => { if(confirm("删除此目标？")) { state.customGoals = state.customGoals.filter(x=>x.id!==id); saveUserData(); render(); } },
             addQty: (id) => { const g = state.customGoals.find(x=>x.id===id); if(g) { g.currentQty++; saveUserData(); render(); } },
             
-            setGradDate: (d) => { },
             toggleGrad: () => { state.showGradSettings = !state.showGradSettings; render(); },
             saveGradSettings: () => {
                 const inputEl = document.getElementById('grad-date-input');
                 if(inputEl) {
                     const val = inputEl.value;
-                    const parsed = parseSafeDate(val);
-                    if (parsed) {
-                        state.graduationDate = val;
-                    } else if (val === '') {
-                        state.graduationDate = '';
-                    }
+                    if (parseSafeDate(val)) state.graduationDate = val;
+                    else if (val === '') state.graduationDate = '';
                 }
                 state.showGradSettings = false;
                 saveUserData();
@@ -598,10 +699,176 @@
             closeProfile: () => { state.showProfileModal = false; render(); },
             setTempProfile: (f,v) => state.tempProfile[f]=v,
             randAvatar: () => { state.tempProfile.avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}`; render(); },
-            saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); syncLeaderboard(); render(); }
+            saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); render(); },
+
+            // --- 文章状态 Action ---
+            openAddArticle: () => {
+                state.articleStatusTouched = false; 
+                const defaultType = '期刊论文';
+                const defaultMilestones = ARTICLE_CONFIG[defaultType].milestones.map(label => ({ label, date: '', note: '' }));
+                
+                state.articleFormData = {
+                    id: null,
+                    title: '',
+                    journal: '',
+                    type: defaultType,
+                    status: '',
+                    milestones: defaultMilestones, 
+                    reviewNotes: '',
+                    notes: ''
+                };
+                state.showArticleModal = true;
+                render();
+                setTimeout(() => {
+                    updateArticleTypeUI(defaultType);
+                    renderMilestonesList();
+                    updateStatusFromMilestones();
+                }, 0);
+            },
+            openEditArticle: (id) => {
+                const article = state.articles.find(a => a.id === id);
+                if (article) {
+                    state.articleFormData = JSON.parse(JSON.stringify(article));
+                    
+                    if (article.status && article.status.trim() !== '') {
+                        state.articleStatusTouched = true;
+                    } else {
+                        state.articleStatusTouched = false;
+                        setTimeout(() => updateStatusFromMilestones(), 0);
+                    }
+
+                    state.showArticleModal = true;
+                    render();
+                    setTimeout(() => {
+                        updateArticleTypeUI(state.articleFormData.type);
+                        renderMilestonesList();
+                    }, 0);
+                }
+            },
+            toggleArticleModal: () => { state.showArticleModal = !state.showArticleModal; render(); },
+            toggleArticleDetails: (id) => {
+                const el = document.getElementById(`article-details-${id}`);
+                const btn = document.getElementById(`article-toggle-btn-${id}`);
+                if(el) el.classList.toggle('hidden');
+                if(btn) btn.classList.toggle('rotate-180');
+            },
+            setArticleForm: (f, v) => { 
+                state.articleFormData[f] = v; 
+                if (f === 'type') actions.changeArticleType(v);
+                if (f === 'status') state.articleStatusTouched = true;
+            },
+            changeArticleType: (newType) => {
+                state.articleFormData.type = newType;
+                if (!state.articleFormData.id) {
+                    const hasDates = state.articleFormData.milestones.some(m => m.date);
+                    if (!hasDates) {
+                        const templates = ARTICLE_CONFIG[newType].milestones || [];
+                        state.articleFormData.milestones = templates.map(label => ({ label, date: '', note: '' }));
+                        renderMilestonesList(); 
+                    }
+                }
+                updateArticleTypeUI(newType); 
+                updateStatusFromMilestones();
+            },
+            addMilestone: () => {
+                const ms = state.articleFormData.milestones;
+                let insertIndex = ms.length; 
+                for (let i = ms.length - 1; i >= 0; i--) {
+                    if (ms[i].date) {
+                        insertIndex = i + 1;
+                        break;
+                    }
+                }
+                if (insertIndex === ms.length && ms.every(m => !m.date)) {
+                     insertIndex = ms.length > 0 ? 1 : 0;
+                }
+                const newNode = { label: '', date: '', note: '', expanded: true };
+                ms.splice(insertIndex, 0, newNode);
+                renderMilestonesList();
+                updateStatusFromMilestones(); 
+                setTimeout(() => {
+                     const inputs = document.querySelectorAll('#milestone-list-container input[type="text"]');
+                     if(inputs[insertIndex]) inputs[insertIndex].focus();
+                }, 0);
+            },
+            appendRecommendedNodes: () => {
+                const type = state.articleFormData.type || '期刊论文';
+                const templates = ARTICLE_CONFIG[type].milestones || [];
+                const currentLabels = state.articleFormData.milestones.map(m => m.label);
+                const newNodes = templates.filter(t => !currentLabels.includes(t))
+                                          .map(label => ({ label, date: '', note: '' }));
+                if (newNodes.length > 0) {
+                    state.articleFormData.milestones = [...state.articleFormData.milestones, ...newNodes];
+                    state.articleFormData.milestones = sortMilestones(state.articleFormData.milestones);
+                    renderMilestonesList();
+                    updateStatusFromMilestones(); 
+                } else {
+                    alert("推荐节点已全部存在");
+                }
+            },
+            removeMilestone: (index) => {
+                if (state.articleFormData.milestones.length <= 1) {
+                    alert("请至少保留一个节点");
+                    return;
+                }
+                state.articleFormData.milestones.splice(index, 1);
+                renderMilestonesList();
+                updateStatusFromMilestones();
+            },
+            updateMilestoneText: (index, field, value) => {
+                state.articleFormData.milestones[index][field] = value;
+                if (field === 'label') updateStatusFromMilestones();
+            },
+            updateMilestoneDate: (index, value) => {
+                state.articleFormData.milestones[index].date = value;
+                state.articleFormData.milestones = sortMilestones(state.articleFormData.milestones);
+                renderMilestonesList();
+                updateStatusFromMilestones();
+            },
+            toggleMilestoneNote: (index) => {
+                const m = state.articleFormData.milestones[index];
+                m.expanded = !m.expanded;
+                const noteEl = document.getElementById(`ms-note-${index}`);
+                const iconBtn = noteEl.parentElement.querySelector('button i');
+                if (noteEl) {
+                    if (m.expanded) {
+                        noteEl.classList.remove('hidden');
+                        if(iconBtn) iconBtn.closest('button').classList.add('rotate-180', 'text-indigo-500');
+                    } else {
+                        noteEl.classList.add('hidden');
+                        if(iconBtn) iconBtn.closest('button').classList.remove('rotate-180', 'text-indigo-500');
+                    }
+                }
+            },
+            saveArticle: (e) => {
+                e.preventDefault();
+                const d = state.articleFormData;
+                if(!d.title) { alert("标题不能为空"); return; }
+                const newArticle = {
+                    ...d,
+                    id: d.id || Date.now(),
+                    submissionDate: d.milestones.find(m => m.date)?.date || getTodayStr() 
+                };
+                if (d.id) {
+                    state.articles = state.articles.map(a => a.id === d.id ? newArticle : a);
+                } else {
+                    state.articles.push(newArticle);
+                }
+                state.articles.sort((a, b) => new Date(b.submissionDate) - new Date(a.submissionDate));
+                state.showArticleModal = false;
+                saveUserData();
+                render();
+            },
+            deleteArticle: (id) => {
+                if(confirm("确定删除这条文章记录吗？")) {
+                    state.articles = state.articles.filter(a => a.id !== id);
+                    saveUserData();
+                    render();
+                }
+            }
         };
 
-        // --- Render ---
+        // --- Render Components ---
         const Icons = {
             Menu: `<i data-lucide="menu" class="w-6 h-6"></i>`, Target: `<i data-lucide="target" class="w-6 h-6"></i>`, History: `<i data-lucide="history" class="w-6 h-6"></i>`,
             Medal: `<i data-lucide="medal" class="w-6 h-6"></i>`, Edit: `<i data-lucide="pencil" class="w-4 h-4"></i>`, Plus: `<i data-lucide="plus" class="w-5 h-5"></i>`,
@@ -609,7 +876,9 @@
             LogOut: `<i data-lucide="log-out" class="w-5 h-5"></i>`, Switch: `<i data-lucide="users" class="w-5 h-5"></i>`, Settings: `<i data-lucide="settings" class="w-5 h-5"></i>`,
             Play: `<i data-lucide="play" class="w-5 h-5"></i>`, X: `<i data-lucide="x" class="w-5 h-5"></i>`, Star: `<i data-lucide="star" class="w-4 h-4"></i>`,
             Wand: `<i data-lucide="wand-2" class="w-3 h-3"></i>`, Cal: `<i data-lucide="calendar" class="w-4 h-4"></i>`,
-            Left: `<i data-lucide="chevron-left" class="w-5 h-5"></i>`, Right: `<i data-lucide="chevron-right" class="w-5 h-5"></i>`
+            Left: `<i data-lucide="chevron-left" class="w-5 h-5"></i>`, Right: `<i data-lucide="chevron-right" class="w-5 h-5"></i>`,
+            File: `<i data-lucide="file-text" class="w-6 h-6"></i>`, Book: `<i data-lucide="book" class="w-4 h-4"></i>`,
+            Refresh: `<i data-lucide="refresh-cw" class="w-3 h-3"></i>`, Down: `<i data-lucide="chevron-down" class="w-4 h-4"></i>`
         };
 
         function AppLogo(size = "w-12 h-12") {
@@ -625,37 +894,15 @@
         function renderProgressBar(current, target, label) {
             const pct = Math.max(0, Math.min(100, target > 0 ? (current / target) * 100 : 0));
             const isDone = pct >= 100;
-            return `
-            <div class="relative pt-6 pb-2">
-                <div class="progress-track">
-                    <div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div>
-                </div>
-                ${isDone ? '<div class="absolute -top-1 right-0 animate-bounce-slow text-xl">🎉</div>' : ''}
-                <div class="flex justify-between text-xs text-slate-400 mt-2 font-medium px-1">
-                    <span>0</span>
-                    <span class="${isDone?'text-green-600 font-bold':''}">${label} ${isDone?'完成!':''}</span>
-                    <span>${target>1000?(target/10000).toFixed(1)+'w':target}</span>
-                </div>
-            </div>`;
+            return `<div class="relative pt-6 pb-2"><div class="progress-track"><div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div></div>${isDone ? '<div class="absolute -top-1 right-0 animate-bounce-slow text-xl">🎉</div>' : ''}<div class="flex justify-between text-xs text-slate-400 mt-2 font-medium px-1"><span>0</span><span class="${isDone?'text-green-600 font-bold':''}">${label} ${isDone?'完成!':''}</span><span>${target>1000?(target/10000).toFixed(1)+'w':target}</span></div></div>`;
         }
 
         function renderLogin() {
-            return `
-            <div class="flex flex-col items-center justify-center h-screen px-8 bg-white">
-                <div class="mb-6 animate-float">${AppLogo("w-24 h-24")}</div>
-                <h1 class="text-2xl font-bold text-slate-800 mb-2">博士写作助手</h1>
-                <p class="text-slate-400 text-sm mb-10">暖心陪伴 · 快乐学术</p>
-                <form onsubmit="actions.auth(event)" class="w-full space-y-4">
-                    <input name="username" placeholder="例如：未来的李博士" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center font-bold text-slate-700" required>
-                    <input name="password" type="password" placeholder="请输入密码" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center">
-                    <button class="w-full primary-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">进入书房</button>
-                </form>
-                <p class="mt-8 text-xs text-slate-300">Tip: 不管输入什么，点击按钮都会进入哦</p>
-            </div>`;
+            return `<div class="flex flex-col items-center justify-center h-screen px-8 bg-white"><div class="mb-6 animate-float">${AppLogo("w-24 h-24")}</div><h1 class="text-2xl font-bold text-slate-800 mb-2">博士写作助手</h1><p class="text-slate-400 text-sm mb-10">暖心陪伴 · 快乐学术</p><form onsubmit="actions.auth(event)" class="w-full space-y-4"><input name="username" placeholder="例如：未来的李博士" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center font-bold text-slate-700" required><input name="password" type="password" placeholder="请输入密码" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center"><button class="w-full primary-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">进入书房</button></form><p class="mt-8 text-xs text-slate-300">Tip: 不管输入什么，点击按钮都会进入哦</p></div>`;
         }
 
         function renderDashboard() {
-            const { total, today, avg } = calcStats(state.viewDate);
+            const { total, today } = calcStats(state.viewDate);
             const days = getDaysLeft();
             const isToday = state.viewDate === getTodayStr();
             
@@ -669,138 +916,23 @@
             
             const dayPlans = state.dailyPlans.filter(p => p.date === state.viewDate);
             
-            let plansHtml = '';
-            if (dayPlans.length > 0) {
-                plansHtml = dayPlans.map(plan => {
-                    const currentProgress = getPlanProgress(plan.id, state.viewDate);
-                    const isDone = currentProgress >= plan.target;
-                    const pct = Math.min(100, Math.round(((currentProgress || 0) / plan.target) * 100));
-                    const goal = state.customGoals.find(g => g.id === plan.linkedGoalId);
-                    const goalName = goal ? goal.name : '自由写作';
-                    const tagStyle = getGoalTagStyle(goalName);
-                    const bgClass = isDone ? 'card-gradient-done border-green-200' : 'card-gradient-1 border-white';
-                    
-                    return `
-                    <div class="${bgClass} rounded-[24px] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] mb-6 relative transition-all hover:scale-[1.01] border">
-                        <div class="absolute top-5 right-5 flex gap-2">
-                            <button onclick="actions.openEditPlan('${plan.id}')" class="text-slate-300 hover:text-indigo-500">${Icons.Edit}</button>
-                            <button onclick="actions.deletePlan('${plan.id}')" class="text-slate-300 hover:text-red-500">${Icons.Trash}</button>
-                        </div>
-                        <div class="flex flex-col items-start mb-4 pr-16 mt-2">
-                            <div class="mb-3">
-                                <span class="goal-tag ${tagStyle.cls}">
-                                    <span class="text-sm">${tagStyle.emoji}</span> ${goalName}
-                                </span>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">${plan.content}</h2>
-                        </div>
-                        <div class="flex items-baseline gap-2 mb-3">
-                            <span class="text-4xl font-black ${isDone ? 'text-green-600' : 'text-indigo-600'}">${currentProgress}</span>
-                            <span class="text-xs text-slate-400 font-bold">/ ${plan.target} 字</span>
-                        </div>
-                        <div class="progress-track mb-5">
-                            <div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div>
-                        </div>
-                        ${isDone ? 
-                            `<div class="w-full py-3 text-center text-green-700 font-bold text-sm bg-white/60 rounded-xl flex items-center justify-center gap-2">🎉 恭喜达成！</div>` : 
-                            `<button onclick="actions.start('${plan.id}')" class="w-full bg-white text-indigo-600 py-3 rounded-xl font-bold shadow-sm border border-indigo-100 flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-indigo-50">${Icons.Play} 开始专注</button>`
-                        }
-                    </div>`;
-                }).join('');
-            } else {
-                plansHtml = `<div class="text-center py-12 text-slate-300"><div class="mb-2 text-4xl opacity-50">🍃</div><p class="text-xs font-medium">今天这里很安静，添加一个目标吧</p></div>`;
-            }
-
-            const addPlanCard = `<button onclick="actions.openAddPlan()" class="w-full bg-white border-2 border-dashed border-indigo-100 rounded-[24px] p-4 text-indigo-400 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors">${Icons.Plus} 添加${isToday?'今日':'该日'}专注</button>`;
+            let plansHtml = dayPlans.length > 0 ? dayPlans.map(plan => {
+                const currentProgress = getPlanProgress(plan.id, state.viewDate);
+                const isDone = currentProgress >= plan.target;
+                const pct = Math.min(100, Math.round(((currentProgress || 0) / plan.target) * 100));
+                const goal = state.customGoals.find(g => g.id === plan.linkedGoalId);
+                const goalName = goal ? goal.name : '自由写作';
+                const tagStyle = getGoalTagStyle(goalName);
+                return `<div class="${isDone ? 'card-gradient-done border-green-200' : 'card-gradient-1 border-white'} rounded-[24px] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] mb-6 relative transition-all hover:scale-[1.01] border"><div class="absolute top-5 right-5 flex gap-2"><button onclick="actions.openEditPlan('${plan.id}')" class="text-slate-300 hover:text-indigo-500">${Icons.Edit}</button><button onclick="actions.deletePlan('${plan.id}')" class="text-slate-300 hover:text-red-500">${Icons.Trash}</button></div><div class="flex flex-col items-start mb-4 pr-16 mt-2"><div class="mb-3"><span class="goal-tag ${tagStyle.cls}"><span class="text-sm">${tagStyle.emoji}</span> ${goalName}</span></div><h2 class="text-lg font-bold text-slate-800">${plan.content}</h2></div><div class="flex items-baseline gap-2 mb-3"><span class="text-4xl font-black ${isDone ? 'text-green-600' : 'text-indigo-600'}">${currentProgress}</span><span class="text-xs text-slate-400 font-bold">/ ${plan.target} 字</span></div><div class="progress-track mb-5"><div class="progress-jelly ${isDone?'done':''}" style="width: ${pct}%"></div></div>${isDone ? `<div class="w-full py-3 text-center text-green-700 font-bold text-sm bg-white/60 rounded-xl flex items-center justify-center gap-2">🎉 恭喜达成！</div>` : `<button onclick="actions.start('${plan.id}')" class="w-full bg-white text-indigo-600 py-3 rounded-xl font-bold shadow-sm border border-indigo-100 flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-indigo-50">${Icons.Play} 开始专注</button>`}</div>`;
+            }).join('') : `<div class="text-center py-12 text-slate-300"><div class="mb-2 text-4xl opacity-50">🍃</div><p class="text-xs font-medium">今天这里很安静，添加一个目标吧</p></div>`;
 
             const goals = state.customGoals.map(g => {
                 const qtyPct = Math.min(100, Math.round((g.currentQty / g.targetQty) * 100));
                 const isQtyDone = g.currentQty >= g.targetQty;
-                return `
-                <div class="bg-white rounded-[20px] p-5 border border-slate-100 mb-4 relative group transition-all hover:shadow-lg shadow-sm">
-                    <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="actions.openEditGoal('${g.id}')" class="text-slate-300 hover:text-indigo-500"><i data-lucide="pencil" class="w-3 h-3"></i></button>
-                        <button onclick="actions.delGoal('${g.id}')" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-                    </div>
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-lg text-slate-800">${g.name}</span>
-                            ${isQtyDone ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full border border-yellow-200 font-bold">已达成</span>' : ''}
-                        </div>
-                        <div class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded font-medium">目标: ${g.targetQty} ${g.unit}</div>
-                    </div>
-                    ${renderProgressBar(g.accumulatedWords, g.targetWords, "字数进度")}
-                    <div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-50">
-                        <span class="text-xs font-bold text-slate-400">数量进度</span>
-                        <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div class="h-full bg-yellow-400 rounded-full" style="width: ${qtyPct}%"></div>
-                        </div>
-                        <div class="text-xs font-mono text-slate-500 w-12 text-right">${g.currentQty}/${g.targetQty}</div>
-                        <button onclick="actions.addQty('${g.id}')" class="w-8 h-8 bg-green-50 text-green-600 rounded-full flex items-center justify-center font-bold text-xs hover:bg-green-100 transition-colors shadow-sm border border-green-100">+1</button>
-                    </div>
-                </div>`;
+                return `<div class="bg-white rounded-[20px] p-5 border border-slate-100 mb-4 relative group transition-all hover:shadow-lg shadow-sm"><div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="actions.openEditGoal('${g.id}')" class="text-slate-300 hover:text-indigo-500"><i data-lucide="pencil" class="w-3 h-3"></i></button><button onclick="actions.delGoal('${g.id}')" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div><div class="flex justify-between items-center mb-4"><div class="flex items-center gap-2"><span class="font-bold text-lg text-slate-800">${g.name}</span>${isQtyDone ? '<span class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full border border-yellow-200 font-bold">已达成</span>' : ''}</div><div class="text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded font-medium">目标: ${g.targetQty} ${g.unit}</div></div>${renderProgressBar(g.accumulatedWords, g.targetWords, "字数进度")}<div class="flex items-center gap-3 mt-4 pt-3 border-t border-slate-50"><span class="text-xs font-bold text-slate-400">数量进度</span><div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-yellow-400 rounded-full" style="width: ${qtyPct}%"></div></div><div class="text-xs font-mono text-slate-500 w-12 text-right">${g.currentQty}/${g.targetQty}</div><button onclick="actions.addQty('${g.id}')" class="w-8 h-8 bg-green-50 text-green-600 rounded-full flex items-center justify-center font-bold text-xs hover:bg-green-100 transition-colors shadow-sm border border-green-100">+1</button></div></div>`;
             }).join('');
 
-            // 优化 3: 底部增加 padding-bottom: 32 (8rem)，防止内容被固定底部导航遮挡
-            return `
-                <div class="flex flex-col h-full bg-gray-50 overflow-hidden">
-                    <div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <div class="text-xs text-indigo-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">🎓 毕业倒计时</div>
-                                <div class="text-2xl font-bold tracking-tight">${days !== null ? `还有 <span class="text-yellow-400 font-black text-3xl mx-1">${days}</span> 天` : '点击设置'}</div>
-                            </div>
-                            <button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button>
-                        </div>
-                        ${state.showGradSettings ? `<div class="absolute inset-x-4 -bottom-16 bg-white shadow-xl p-4 rounded-xl flex items-center z-30 animate-scale-in border border-slate-100"><input type="date" id="grad-date-input" value="${state.graduationDate}" class="bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2 flex-1 outline-none"><button onclick="actions.saveGradSettings()" class="ml-2 bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg">确定</button></div>` : ''}
-                    </div>
-
-                    <div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6">
-                        <div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50">
-                            <button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button>
-                            <div class="flex flex-col items-center">
-                                <span class="text-lg font-bold text-slate-800">${dateStr}</span>
-                                <span class="text-xs text-indigo-400 font-bold bg-indigo-50 px-2 py-0.5 rounded-full mt-1">${isToday ? '今天' : weekStr}</span>
-                            </div>
-                            <button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button>
-                        </div>
-
-                        <div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden">
-                            <div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div>
-                            <div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div>
-                            <div>
-                                <h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4>
-                                <p class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider px-1 flex items-center gap-2"><div class="w-1 h-4 bg-indigo-400 rounded-full"></div> ${isToday?'今日':'当日'}专注</h3>
-                            ${plansHtml}
-                            ${addPlanCard}
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white p-4 rounded-[20px] border border-indigo-50 shadow-sm flex flex-col justify-center items-center text-center">
-                                <div class="text-xs text-slate-400 mb-1 font-bold">总字数累积</div>
-                                <div class="text-2xl font-black text-slate-800">${total.toLocaleString()}</div>
-                            </div>
-                            <div class="bg-white p-4 rounded-[20px] border border-orange-50 shadow-sm flex flex-col justify-center items-center text-center">
-                                <div class="text-xs text-slate-400 mb-1 font-bold">${isToday?'今日':'当日'}总产出</div>
-                                <div class="text-2xl font-black text-slate-800">${today.toLocaleString()}</div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between items-center mb-4 px-1">
-                                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><div class="w-1 h-4 bg-yellow-400 rounded-full"></div> 毕业总目标</h3>
-                                <button onclick="actions.openAddGoal()" class="text-xs text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition">+ 新建目标</button>
-                            </div>
-                            ${goals}
-                        </div>
-                    </div>
-                </div>
-            `;
+            return `<div class="flex flex-col h-full bg-gray-50 overflow-hidden"><div class="bg-slate-800 text-white p-5 pb-8 rounded-b-[30px] shadow-lg shrink-0 -mb-6 z-10 relative"><div class="flex justify-between items-center"><div><div class="text-xs text-indigo-300 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">🎓 毕业倒计时</div><div class="text-2xl font-bold tracking-tight">${days !== null ? `还有 <span class="text-yellow-400 font-black text-3xl mx-1">${days}</span> 天` : '点击设置'}</div></div><button onclick="actions.toggleGrad()" class="bg-white/10 p-2 rounded-full text-white hover:bg-white/20 transition">${Icons.Settings}</button></div>${state.showGradSettings ? `<div class="absolute inset-x-4 -bottom-16 bg-white shadow-xl p-4 rounded-xl flex items-center z-30 animate-scale-in border border-slate-100"><input type="date" id="grad-date-input" value="${state.graduationDate}" class="bg-slate-50 text-slate-800 border border-slate-200 rounded-lg p-2 flex-1 outline-none"><button onclick="actions.saveGradSettings()" class="ml-2 bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg">确定</button></div>` : ''}</div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6"><div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button><div class="flex flex-col items-center cursor-pointer group" onclick="actions.goToToday()"><span class="text-lg font-bold text-slate-800">${dateStr}</span>${isToday ? `<span class="text-xs text-indigo-600 font-bold bg-indigo-50 px-3 py-0.5 rounded-full mt-1 border border-indigo-100 flex items-center gap-1">今天 · ${weekStr}</span>` : `<span class="text-xs text-slate-400 font-bold bg-slate-50 px-3 py-0.5 rounded-full mt-1 border border-slate-100 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> 回到今天</span>`}</div><button onclick="actions.changeDate(1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Right}</button></div><div class="bg-gradient-psych p-4 rounded-[20px] flex gap-3 items-start shadow-sm relative overflow-hidden"><div class="absolute -right-2 -top-2 text-6xl opacity-10">✨</div><div class="mt-1 bg-white p-1.5 rounded-full shadow-sm text-indigo-500"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div><h4 class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider">心理能量站</h4><p class="text-sm text-slate-700 italic font-medium leading-relaxed">"${state.dailyQuote}"</p></div></div><div><h3 class="text-sm font-bold text-slate-400 mb-4 uppercase tracking-wider px-1 flex items-center gap-2"><div class="w-1 h-4 bg-indigo-400 rounded-full"></div> ${isToday?'今日':weekStr}专注</h3>${plansHtml}<button onclick="actions.openAddPlan()" class="w-full bg-white border-2 border-dashed border-indigo-100 rounded-[24px] p-4 text-indigo-400 font-bold flex items-center justify-center gap-2 hover:bg-indigo-50 transition-colors mt-6">${Icons.Plus} 添加${isToday?'今日':'该日'}专注</button></div><div class="grid grid-cols-2 gap-4"><div class="bg-white p-4 rounded-[20px] border border-indigo-50 shadow-sm flex flex-col justify-center items-center text-center"><div class="text-xs text-slate-400 mb-1 font-bold">总字数累积</div><div class="text-2xl font-black text-slate-800">${total.toLocaleString()}</div></div><div class="bg-white p-4 rounded-[20px] border border-orange-50 shadow-sm flex flex-col justify-center items-center text-center"><div class="text-xs text-slate-400 mb-1 font-bold">${isToday?'今日':'当日'}总产出</div><div class="text-2xl font-black text-slate-800">${today.toLocaleString()}</div></div></div><div><div class="flex justify-between items-center mb-4 px-1"><h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2"><div class="w-1 h-4 bg-yellow-400 rounded-full"></div> 毕业总目标</h3><button onclick="actions.openAddGoal()" class="text-xs text-indigo-600 font-bold bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition">+ 新建目标</button></div>${goals}</div></div></div>`;
         }
 
         function renderWorking() {
@@ -813,7 +945,6 @@
         function renderAddEntry() {
             const goalOptions = state.customGoals.map(g => `<option value="${g.id}" ${g.id === state.formData.linkedGoalId ? 'selected' : ''}>${g.name} (上次结束: ${getLastCountForGoal(g.id)})</option>`).join('');
             const net = (parseInt(state.formData.endCount)||state.formData.startCount) - state.formData.startCount;
-            // 优化 3: 底部增加 padding-bottom: 32 (8rem)
             return `<div class="pb-safe h-full overflow-y-auto bg-gray-50"><div class="px-5 pt-8 pb-32"><h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📝 补录打卡</h2><form onsubmit="actions.end(event)" class="space-y-5"><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50"><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">日期</label><input type="date" name="date" value="${state.formData.date || getTodayStr()}" onchange="actions.setFormData('date',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium"></div><div class="mb-5"><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">关联目标</label><select onchange="actions.setFormData('linkedGoalId',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-500 font-medium appearance-none">${goalOptions}</select></div><div class="grid grid-cols-2 gap-4 mb-5"><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">开始字数</label><div class="flex items-center"><button type="button" onclick="actions.adjustManualStart(-100)" class="p-3 bg-slate-100 rounded-l-xl text-slate-500 hover:bg-slate-200 font-bold">-</button><input type="number" name="startCount" value="${state.formData.startCount}" oninput="actions.setFormData('startCount',this.value)" class="w-full text-center bg-slate-50 border-y border-slate-100 py-3 text-sm font-bold outline-none"><button type="button" onclick="actions.adjustManualStart(100)" class="p-3 bg-slate-100 rounded-r-xl text-slate-500 hover:bg-slate-200 font-bold">+</button></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">结束字数</label><input type="number" name="endCount" required value="${state.formData.endCount}" oninput="actions.setFormData('endCount',this.value)" class="w-full bg-white border-2 border-indigo-100 rounded-xl p-2.5 text-lg font-bold text-center outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 transition"></div></div><div class="flex justify-between items-center bg-indigo-50 p-4 rounded-xl"><span class="text-sm text-indigo-400 font-bold">本次净增</span><span id="net-word-display" class="font-black text-2xl text-indigo-600">${net} 字</span></div></div><div class="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50 space-y-6"><div><div class="flex justify-between items-center mb-4"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">状态 & 感想</label><button type="button" onclick="actions.autoGenReflection()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold hover:bg-purple-100 transition">${Icons.Wand} 帮我写</button></div><div class="flex justify-around mb-6">${['happy','neutral','sad','tired'].map(m => `<button type="button" onclick="actions.setMood('${m}')">${MoodIcon(m, state.formData.mood === m)}</button>`).join('')}</div><textarea name="reflection" placeholder="如果不写，我就帮你自动生成啦~" oninput="actions.setFormData('reflection',this.value)" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-sm h-28 resize-none outline-none focus:ring-2 focus:ring-indigo-100 transition">${state.formData.reflection}</textarea></div><div><div class="flex justify-between items-center mb-3"><label class="text-xs font-bold text-slate-400 uppercase tracking-wider">投入时长</label><span id="duration-display" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg min-w-[4rem] text-center">${state.formData.duration || '0 小时'}</span></div><div class="px-2 py-2"><input type="range" min="0" max="12" step="0.5" value="${state.formData.durationNum || 0}" oninput="actions.updateDuration(this.value)"><div class="flex justify-between text-[10px] text-slate-300 mt-2 font-mono"><span>0h</span><span>6h</span><span>12h</span></div></div></div><div><label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">完成内容 (选填)</label><input type="text" name="chapter" value="${state.formData.chapter}" oninput="actions.setFormData('chapter',this.value)" placeholder="例如：第三章文献综述" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-indigo-300"></div></div><button class="w-full primary-gradient text-white font-bold py-4 rounded-[20px] shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">${Icons.Check} 提交打卡</button></form></div></div>`;
         }
 
@@ -826,17 +957,114 @@
                 if(i===2) rankBadge = `<span class="text-xl">🥉</span>`;
                 return `<div class="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-[20px] mb-3 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"><div class="w-8 flex justify-center">${rankBadge}</div><img src="${u.avatar}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm"><span class="flex-1 font-bold text-sm text-slate-700">${u.username}</span><div class="bg-indigo-50 px-3 py-1 rounded-full"><span class="font-black text-indigo-600 text-sm">${u.wordCount}</span> <span class="text-xs text-indigo-400">字</span></div></div>`;
             }).join('');
-            // 优化 3: 底部增加 padding-bottom: 32 (8rem)
             return `<div class="p-4 bg-gray-50 h-full overflow-y-auto pb-32"><div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-6 rounded-[24px] shadow-lg mb-6 relative overflow-hidden"><div class="absolute right-0 top-0 text-6xl opacity-20">🏆</div><h2 class="font-bold text-xl mb-1">今日龙虎榜</h2><p class="text-xs opacity-90">看见坚持的力量 · 全网同步</p></div>${list||'<div class="flex flex-col items-center justify-center py-20 opacity-50"><div class="text-4xl mb-2">🍃</div><p class="text-sm">今日还没有人打卡哦</p></div>'}</div>`;
         }
 
         function renderHistory() {
             const list = state.entries.slice().reverse().map(e=>`<div class="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm mb-4 relative overflow-hidden"><div class="absolute left-0 top-0 bottom-0 w-2 bg-indigo-500"></div><div class="pl-3"><div class="flex justify-between mb-2"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded">${e.date}</span><span class="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">+${e.dailyCount}字</span></div><div class="text-base font-bold text-slate-800 mb-2">${e.linkedPlanContent || e.linkedGoalName || '自由写作'}</div><div class="text-sm text-slate-500 bg-slate-50 p-3 rounded-xl italic">"${e.reflection||'无感想'}"</div>${e.duration ? `<div class="mt-2 text-xs text-slate-400 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> 投入时长: ${e.duration}</div>` : ''}</div></div>`).join('');
-            // 优化 3: 底部增加 padding-bottom: 32 (8rem)
             return `<div class="p-4 bg-gray-50 h-full overflow-y-auto pb-32"><div class="flex justify-between items-center mb-6 px-1"><h2 class="font-bold text-xl text-slate-800">历史足迹</h2><span class="text-xs text-slate-400 bg-white px-2 py-1 rounded-full border border-slate-100 shadow-sm">当前账号: ${state.user.username}</span></div>${list||'<p class="text-center text-slate-400 mt-20">空空如也，去写下第一笔吧！</p>'}</div>`;
         }
 
-        // --- Render ---
+        // --- 文章状态页面 (升级版: 折叠详情) ---
+        function renderArticles() {
+            let articleList = '';
+            if (state.articles.length > 0) {
+                articleList = state.articles.map(article => {
+                    // 1. 进度计算
+                    const milestones = article.milestones || [];
+                    const totalSteps = milestones.length > 0 ? milestones.length : 1;
+                    const completedSteps = milestones.filter(m => m.date).length;
+                    const progressPct = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
+
+                    // 2. 时间线渲染 (先排序)
+                    const sortedMilestones = [...milestones].sort((a,b) => {
+                        if(!a.date) return 1; 
+                        if(!b.date) return -1;
+                        return new Date(a.date) - new Date(b.date);
+                    });
+
+                    const timelineHtml = sortedMilestones.map((node, index) => {
+                        const isDone = !!node.date;
+                        return `
+                        <div class="flex gap-3 relative group">
+                            <div class="timeline-line"></div>
+                            <div class="flex flex-col items-center relative z-10">
+                                <div class="w-3 h-3 rounded-full ${isDone ? 'bg-indigo-500' : 'bg-slate-300'} border-2 border-white shadow-sm"></div>
+                            </div>
+                            <div class="pb-6 flex-1">
+                                <div class="flex items-center justify-between mb-0.5">
+                                    <span class="text-sm font-bold ${isDone ? 'text-slate-800' : 'text-slate-400'}">${node.label}</span>
+                                    ${node.date ? `<span class="text-xs text-slate-500 font-mono bg-slate-50 px-1.5 rounded">${node.date}</span>` : ''}
+                                </div>
+                                ${node.note ? `<div class="text-xs text-slate-400 mt-1">${node.note}</div>` : ''}
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    return `
+                    <div class="bg-white rounded-[24px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] mb-5 border border-slate-50 relative group transition-all duration-300">
+                        <!-- 概览区域 (始终显示) -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center flex-wrap gap-2">
+                                    <span class="${getArticleTypeClass(article.type)} text-[10px] font-bold px-2 py-0.5 rounded-full">${article.type || '期刊论文'}</span>
+                                    <span class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100">${article.status || '未设置状态'}</span>
+                                </div>
+                                <div class="flex gap-1">
+                                    <button onclick="actions.openEditArticle(${article.id})" class="text-slate-300 hover:text-indigo-500 p-1.5 rounded-full hover:bg-indigo-50 transition"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                                    <button onclick="actions.deleteArticle(${article.id})" class="text-slate-300 hover:text-red-500 p-1.5 rounded-full hover:bg-red-50 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                                </div>
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 leading-tight mb-1 pr-4">${article.title}</h3>
+                            <div class="text-xs text-slate-400 font-medium">${article.journal || '未填写期刊/来源'}</div>
+                        </div>
+
+                        <!-- 进度条 + 展开按钮 -->
+                        <div class="flex items-end gap-3 mb-2">
+                            <div class="flex-1">
+                                <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                    <span class="font-bold text-indigo-400 uppercase tracking-wider">进度概览</span>
+                                    <span>已完成 ${completedSteps} / ${totalSteps} 节点</span>
+                                </div>
+                                <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-indigo-500 rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
+                                </div>
+                            </div>
+                            <button id="article-toggle-btn-${article.id}" onclick="actions.toggleArticleDetails(${article.id})" class="text-slate-400 hover:text-indigo-600 transition-transform duration-300 p-1">
+                                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+
+                        <!-- 详情区域 (默认折叠) -->
+                        <div id="article-details-${article.id}" class="hidden pt-4 mt-4 border-t border-slate-50 animate-fade-in">
+                            <div class="pl-1 mb-2">
+                                ${timelineHtml}
+                            </div>
+
+                            ${(article.reviewNotes || article.notes) ? `
+                            <div class="bg-gray-50 rounded-xl p-3 space-y-3 mt-4 border border-slate-100">
+                                ${article.reviewNotes ? `
+                                    <div>
+                                        <div class="text-[10px] font-bold text-indigo-400 uppercase mb-1">审稿摘要</div>
+                                        <div class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">${article.reviewNotes}</div>
+                                    </div>` : ''}
+                                ${article.notes ? `
+                                    <div>
+                                        <div class="text-[10px] font-bold text-indigo-400 uppercase mb-1">备注</div>
+                                        <div class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">${article.notes}</div>
+                                    </div>` : ''}
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                articleList = `<div class="text-center py-20 opacity-50"><div class="text-4xl mb-4">📄</div><p class="text-sm font-medium text-slate-500">还没有文章记录<br>点击右上角添加第一篇吧</p></div>`;
+            }
+
+            return `<div class="flex flex-col h-full bg-gray-50 overflow-hidden"><div class="px-5 pt-6 pb-2 shrink-0 flex justify-between items-end mb-2"><div><h2 class="text-2xl font-bold text-slate-800">文章状态</h2><p class="text-xs text-slate-400 mt-1">从投稿到录用，一目了然</p></div><button onclick="actions.openAddArticle()" class="bg-indigo-600 text-white rounded-xl px-4 py-2 font-bold text-xs shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex items-center gap-1">${Icons.Plus} 新增</button></div><div class="flex-1 overflow-y-auto px-4 pb-32 hide-scrollbar">${articleList}</div></div>`;
+        }
+
+        // --- Main Render ---
         function render() {
             const app = document.getElementById('app');
             if (!app) return;
@@ -854,12 +1082,13 @@
                     if (state.activeTab === 'dashboard') content = renderDashboard();
                     else if (state.activeTab === 'rank') content = renderRank();
                     else if (state.activeTab === 'add') content = renderAddEntry();
+                    else if (state.activeTab === 'articles') content = renderArticles();
                     else content = renderHistory(); 
                     
                     const sidebar = state.showSidebar ? `<div class="fixed inset-0 bg-black/50 z-40 animate-fade-in" onclick="actions.toggleSidebar()"></div><div class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl p-0 flex flex-col animate-slide-up" style="animation-direction: normal; animation-name: slide-right;"><div class="p-6 border-b border-slate-100 bg-slate-50"><div class="flex items-center gap-3 mb-4"><img src="${state.user.avatar}" class="w-14 h-14 rounded-full border-2 border-white shadow-sm"><div><h3 class="font-bold text-slate-800">${state.user.username}</h3><button onclick="actions.editProfile()" class="text-xs text-indigo-500">编辑资料</button></div></div><div class="bg-white p-3 rounded-lg border border-slate-200"><div class="text-xs text-slate-400 mb-1">累计产出</div><div class="text-sm font-bold text-slate-800">${state.entries.reduce((a,b)=>a+b.dailyCount,0).toLocaleString()} 字</div></div></div><div class="p-2 space-y-1"><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl"><span class="text-indigo-500">${Icons.Switch}</span> 切换账号</button><button onclick="actions.askLogout()" class="w-full flex items-center gap-3 p-3 text-red-500 hover:bg-red-50 rounded-xl"><span class="text-red-500">${Icons.LogOut}</span> 退出登录</button></div></div>` : '';
 
                     let modals = '';
-                    // ... Modal logic ...
+                    // ... Plan & Goal Modals ...
                     if (state.showPlanModal) {
                         const isEdit = !!state.editingPlanId;
                         const options = state.customGoals.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
@@ -878,9 +1107,77 @@
                     if (state.showProfileModal) {
                         modals += `<div class="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-6" onclick="actions.closeProfile()"><div class="bg-white rounded-2xl p-6 w-full max-w-sm" onclick="event.stopPropagation()"><h3 class="font-bold text-lg mb-4">编辑资料</h3><div class="text-center mb-4"><img src="${state.tempProfile.avatar}" class="w-20 h-20 rounded-full mx-auto mb-2"><button onclick="actions.randAvatar()" class="text-xs text-indigo-500">换个头像</button></div><input value="${state.tempProfile.name}" oninput="actions.setTempProfile('name',this.value)" class="w-full border p-2 rounded mb-4 text-center font-bold"><button onclick="actions.saveProfile(event)" class="w-full primary-gradient text-white py-3 rounded-xl">保存</button></div></div>`;
                     }
+                    
+                    // --- 增强版文章状态添加模态框 ---
+                    if (state.showArticleModal) {
+                        const d = state.articleFormData;
+                        modals += `
+                        <div class="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center" onclick="actions.toggleArticleModal()">
+                            <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-[30px] p-6 max-h-[90vh] overflow-y-auto animate-slide-up" onclick="event.stopPropagation()">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="font-bold text-xl text-slate-800">${d.id ? '编辑文章状态' : '📝 记录文章状态'}</h3>
+                                    <button onclick="actions.toggleArticleModal()" class="text-slate-400 bg-slate-50 p-2 rounded-full hover:bg-slate-100">${Icons.X}</button>
+                                </div>
+                                <form onsubmit="actions.saveArticle(event)" class="space-y-5">
+                                    <div class="space-y-4">
+                                        <!-- 基本信息区 -->
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">基本信息 *</label>
+                                            <div class="flex gap-2 mb-2">
+                                                <input type="text" id="article-title-input" placeholder="文章标题" value="${d.title}" oninput="actions.setArticleForm('title',this.value)" class="flex-[2] border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 font-bold text-sm" required>
+                                                <select onchange="actions.setArticleForm('type',this.value)" class="flex-1 border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 text-sm appearance-none">
+                                                    ${ARTICLE_TYPES.map(t => `<option value="${t}" ${d.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <div class="flex-[2] relative">
+                                                    <label id="article-journal-label" class="absolute -top-5 left-0 text-[10px] text-slate-400 hidden">期刊/会议名称</label>
+                                                    <input type="text" id="article-journal-input" placeholder="期刊/会议名称" value="${d.journal}" oninput="actions.setArticleForm('journal',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 text-sm" required>
+                                                </div>
+                                                <div class="flex-1 relative">
+                                                    <input id="article-status-input" list="stage-options" placeholder="当前状态" value="${d.status}" oninput="actions.setArticleForm('status',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 text-sm">
+                                                    <datalist id="stage-options"></datalist>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                    // 优化 3: 底部导航栏 fixed 定位，max-w-md 限制宽度，z-50 确保置顶
-                    const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('rank')" class="flex flex-col items-center gap-1 ${state.activeTab==='rank'?'text-indigo-600':'text-slate-400'}">${Icons.Medal}<span class="text-[10px]">榜单</span></button></nav>`;
+                                        <!-- 关键节点区 -->
+                                        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                                            <div class="flex justify-between items-center mb-3">
+                                                <p class="text-xs font-bold text-indigo-400 uppercase flex items-center gap-1">${Icons.Cal} 关键时间节点</p>
+                                                <div class="flex gap-2">
+                                                    ${!d.id ? `<button type="button" onclick="actions.appendRecommendedNodes()" class="text-[10px] bg-white text-indigo-600 px-2 py-1 rounded shadow-sm flex items-center gap-1 border border-indigo-100 hover:bg-indigo-50">${Icons.Refresh} 补全推荐</button>` : ''}
+                                                    <button type="button" onclick="actions.addMilestone()" class="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded shadow-sm flex items-center gap-1 hover:bg-indigo-700">${Icons.Plus} 自定义</button>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- 节点列表容器 -->
+                                            <div id="milestone-list-container" class="space-y-2 max-h-60 overflow-y-auto milestones-scroll pr-1">
+                                                <!-- Content populated by renderMilestonesList() -->
+                                            </div>
+                                            
+                                            <p class="text-[10px] text-indigo-300 mt-2 text-center">提示：填写日期后，上方状态会自动更新（除非手动修改过）</p>
+                                        </div>
+
+                                        <!-- 备注区 -->
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">审稿人意见摘要</label>
+                                            <textarea oninput="actions.setArticleForm('reviewNotes',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 h-24 resize-none text-sm" placeholder="记录审稿人主要意见...">${d.reviewNotes}</textarea>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">文章整体备注</label>
+                                            <textarea oninput="actions.setArticleForm('notes',this.value)" class="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 outline-none focus:border-indigo-500 h-20 resize-none text-sm" placeholder="合作者情况、基金号等...">${d.notes}</textarea>
+                                        </div>
+                                    </div>
+
+                                    <button class="w-full primary-gradient text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">保存文章状态</button>
+                                </form>
+                            </div>
+                        </div>`;
+                    }
+
+                    const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('articles')" class="flex flex-col items-center gap-1 ${state.activeTab==='articles'?'text-indigo-600':'text-slate-400'}">${Icons.File}<span class="text-[10px]">文章</span></button><button onclick="actions.setTab('rank')" class="flex flex-col items-center gap-1 ${state.activeTab==='rank'?'text-indigo-600':'text-slate-400'}">${Icons.Medal}<span class="text-[10px]">榜单</span></button></nav>`;
 
                     htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600 hover:bg-slate-50 p-1 rounded-lg">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${AppLogo("w-6 h-6")}</div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
                 }
@@ -893,38 +1190,15 @@
         // --- 初始化入口 ---
         function initApp() {
             try {
-                // 在下一帧执行，确保 UI 已经渲染了 loading
                 requestAnimationFrame(() => {
                     const savedUser = Storage.get('phd_current_user', null);
-                    if (savedUser) {
-                        loadLocalUser(savedUser);
-                    } else {
-                        state.view = 'login';
-                        render();
-                    }
+                    if (savedUser) { loadLocalUser(savedUser); } else { state.view = 'login'; render(); }
                 });
-            } catch (error) {
-                console.error("Init failed:", error);
-                state.view = 'login';
-                render();
-            }
+            } catch (error) { console.error("Init failed:", error); state.view = 'login'; render(); }
         }
 
-        // --- 启动逻辑 ---
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initApp);
-        } else {
-            initApp();
-        }
-        
-        // 超时保底
-        setTimeout(() => {
-            const loadingEl = document.getElementById('loading-screen');
-            if (loadingEl && document.body.contains(loadingEl)) {
-                state.view = 'login';
-                render();
-            }
-        }, 1500);
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
+        setTimeout(() => { if (document.getElementById('loading-screen')) { state.view = 'login'; render(); } }, 1500);
 
     </script>
 </body>
