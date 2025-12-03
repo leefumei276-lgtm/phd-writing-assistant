@@ -23,7 +23,42 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 移除旧的 splash 样式，使用内联样式控制加载层 --- */
+        /* --- 启动加载层样式 (Bug 1: 优化加载体验) --- */
+        #app-loading {
+            position: fixed;
+            inset: 0;
+            background-color: #f9fafb;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.4s ease-out, visibility 0.4s;
+        }
+        
+        #app-loading.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(99, 102, 241, 0.1);
+            border-top-color: #6366F1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .loading-text {
+            color: #4b5563;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            animation: pulse 2s infinite ease-in-out;
+        }
 
         /* --- 原有动画定义 --- */
         @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -33,6 +68,7 @@
         @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
         .animate-slide-up { animation: slide-up 0.3s ease-out; }
         .animate-fade-in { animation: fade-in 0.2s ease-out; }
@@ -103,19 +139,10 @@
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 1. 简易加载层 (Bug 1: 解决白屏问题) -->
-    <div id="app-loading" style="
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f9fafb;
-        color: #4b5563;
-        font-size: 16px;
-        z-index: 9999;
-    ">
-        正在为你准备 PhD Flow，马上就好…
+    <!-- 1. 修复 Bug 1：静态加载层 (直接在 body 第一位) -->
+    <div id="app-loading">
+        <div class="loader-spinner"></div>
+        <div class="loading-text">正在为你准备 PhD Flow，马上就好…</div>
     </div>
 
     <!-- 2. 应用主容器：初始为空，等待 JS 填充 -->
@@ -132,7 +159,8 @@
 
     <!-- 核心逻辑 -->
     <script>
-        // --- 核心配置 (Bug 2: 允许未来 20 年) ---
+        // --- 核心配置 ---
+        // Bug 2 修复：定义未来最大日期
         const TODAY_OBJ = new Date();
         const MAX_FUTURE_YEARS = 20;
         const MAX_FUTURE_DATE = new Date(
@@ -141,6 +169,7 @@
             TODAY_OBJ.getDate()
         );
 
+        // 辅助函数：格式化日期为 input 用的 YYYY-MM-DD
         function formatDateToInput(d) {
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -805,15 +834,15 @@
             // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // 修正：允许向未来翻页 (Bug 2: 修正日期范围逻辑)
+            // Bug 2 修复：允许向未来翻页，仅限制最大日期
             changeDate: (days) => { 
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
-                const newDateStr = current.toISOString().split('T')[0];
                 
-                // 修正：只要不超过 MAX_FUTURE_DATE 就允许 (Bug 2 Fix)
-                if (days > 0 && current > MAX_FUTURE_DATE) return;
+                // 检查是否超过最大日期 (使用时间戳比较以避免时分秒问题)
+                if (days > 0 && current.getTime() > MAX_FUTURE_DATE.getTime()) return;
 
+                const newDateStr = current.toISOString().split('T')[0];
                 state.viewDate = newDateStr; 
                 render(); 
             },
@@ -1603,7 +1632,7 @@
             app.innerHTML = htmlContent;
             if (window.lucide) lucide.createIcons();
 
-            // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它
+            // 关键逻辑优化：渲染完成后，如果有加载层，则淡出移除它 (Bug 1 Fix)
             const loadingScreen = document.getElementById('app-loading');
             if (loadingScreen && state.view !== 'loading') {
                 loadingScreen.classList.add('fade-out');
@@ -1617,6 +1646,7 @@
         // --- 初始化入口 ---
         function initApp() {
             try {
+                // Bug 1 Fix: 确保在第一帧渲染前不移除 loading
                 requestAnimationFrame(() => {
                     const savedUser = Storage.get('phd_current_user', null);
                     // 初始化加载心理能量站文案
@@ -1631,14 +1661,18 @@
 
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
         
-        // 保底逻辑：如果 2 秒还没移除 loading，强制进入
+        // 保底逻辑：如果 2 秒还没移除 loading，强制进入 (移除旧的 setTimeout 阻塞)
+        // 这里只是为了防止异常情况，正常流程由 initApp -> render 控制
         setTimeout(() => { 
             const loadingScreen = document.getElementById('app-loading');
             if (loadingScreen && !loadingScreen.classList.contains('fade-out')) { 
-                state.view = 'login'; 
-                render(); 
+                // 如果还在 loading 状态，强制尝试渲染登录页
+                if(state.view === 'loading') {
+                     state.view = 'login'; 
+                     render();
+                }
             } 
-        }, 2000);
+        }, 3000);
 
     </script>
 </body>
