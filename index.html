@@ -87,6 +87,14 @@
         .milestones-scroll::-webkit-scrollbar { width: 4px; }
         .milestones-scroll::-webkit-scrollbar-track { background: transparent; }
         .milestones-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
+
+        /* Custom Calendar Styles */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { display: flex; align-items: center; justify-content: center; height: 36px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .calendar-day:hover { background-color: #f3f4f6; }
+        .calendar-day.selected { background-color: #4f46e5; color: white; font-weight: bold; }
+        .calendar-day.today { border: 1px solid #6366f1; color: #6366f1; }
+        .calendar-day.empty { pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
@@ -98,6 +106,9 @@
             <p id="loading-text">正在整理书桌...</p>
         </div>
     </div>
+    
+    <!-- 独立的日历挂载点，避免主渲染刷新导致的闪退 -->
+    <div id="calendar-mount" class="relative z-[100]"></div>
 
     <!-- 关键脚本 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -250,6 +261,13 @@
                 milestones: [], 
                 reviewNotes: '',
                 notes: ''
+            },
+            // 日历组件状态
+            calendar: {
+                visible: false,
+                targetIndex: null, // 正在编辑的 milestones 索引
+                currentYear: new Date().getFullYear(),
+                currentMonth: new Date().getMonth()
             }
         };
 
@@ -472,6 +490,7 @@
 
             const ms = state.articleFormData.milestones;
             
+            // 注意：这里把 <input type="date"> 换成了自定义 div，点击触发 actions.openCalendar(idx)
             const html = ms.map((m, idx) => `
                 <div class="border border-slate-200 rounded-xl p-3 bg-white mb-2 transition-all hover:shadow-sm group">
                     <div class="flex items-center gap-2">
@@ -481,7 +500,10 @@
                         
                         <input type="text" placeholder="节点名称" value="${m.label}" oninput="actions.updateMilestoneText(${idx}, 'label', this.value)" class="flex-1 text-sm font-bold text-slate-700 outline-none bg-transparent placeholder-slate-300">
                         
-                        <input type="date" value="${m.date}" onchange="actions.updateMilestoneDate(${idx}, this.value)" class="text-xs text-slate-500 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500 w-28">
+                        <!-- 自定义日期选择器触发区 -->
+                        <div onclick="actions.openCalendar(${idx})" class="cursor-pointer text-xs font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1.5 w-28 text-center hover:border-indigo-500 hover:text-indigo-600 transition-colors ${m.date ? 'text-slate-700 font-bold' : 'text-slate-400'}">
+                            ${m.date || '选择日期'}
+                        </div>
                         
                         <button type="button" onclick="actions.removeMilestone(${idx})" class="text-slate-200 hover:text-red-400 p-1 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
@@ -493,6 +515,70 @@
             `).join('');
             
             container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // --- 独立的日历组件渲染函数 ---
+        // 渲染到 #calendar-mount 而不是 #app，避免主视图刷新
+        function renderCalendarComponent() {
+            const mount = document.getElementById('calendar-mount');
+            if (!mount) return;
+
+            if (!state.calendar.visible) {
+                mount.innerHTML = '';
+                return;
+            }
+
+            const { currentYear, currentMonth } = state.calendar;
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // 0 is Sunday
+            
+            const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+
+            let daysHtml = '';
+            // Empty slots for previous month
+            for (let i = 0; i < firstDay; i++) {
+                daysHtml += `<div class="calendar-day empty"></div>`;
+            }
+            // Days
+            const today = new Date();
+            for (let day = 1; day <= daysInMonth; day++) {
+                const isToday = (today.getFullYear() === currentYear && today.getMonth() === currentMonth && today.getDate() === day);
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                // 检查当前节点是否已选中该日期
+                const targetIdx = state.calendar.targetIndex;
+                const currentSelected = (targetIdx !== null && state.articleFormData.milestones[targetIdx]) ? state.articleFormData.milestones[targetIdx].date : '';
+                const isSelected = currentSelected === dateStr;
+
+                daysHtml += `<div onclick="actions.selectCalendarDate(${day})" class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}">${day}</div>`;
+            }
+
+            mount.innerHTML = `
+                <div class="fixed inset-0 bg-black/20 z-[100] flex items-center justify-center p-4 animate-fade-in" onclick="actions.closeCalendar()">
+                    <div class="bg-white rounded-2xl p-5 w-full max-w-[300px] shadow-2xl animate-scale-in" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-center mb-4">
+                            <button onclick="actions.calendarPrevMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                            <span class="font-bold text-slate-800">${currentYear}年 ${monthNames[currentMonth]}</span>
+                            <button onclick="actions.calendarNextMonth()" class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-indigo-600"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                        </div>
+                        <div class="calendar-grid mb-2">
+                            <span class="text-xs text-center text-slate-300 font-bold">日</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">一</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">二</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">三</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">四</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">五</span>
+                            <span class="text-xs text-center text-slate-300 font-bold">六</span>
+                        </div>
+                        <div class="calendar-grid">
+                            ${daysHtml}
+                        </div>
+                        <div class="mt-4 flex justify-center">
+                            <button onclick="actions.closeCalendar()" class="text-xs text-slate-400 hover:text-slate-600">取消</button>
+                        </div>
+                    </div>
+                </div>
+            `;
             if (window.lucide) lucide.createIcons();
         }
 
@@ -529,20 +615,24 @@
                     state.formData = { date: getTodayStr(), linkedGoalId: defaultGoalId, startCount: lastCount, endCount: lastCount, chapter: '', mood: 'neutral', reflection: '', duration: '', durationNum: 0 };
                 } 
                 if(t==='rank') { state.loadingLeaderboard = true; render(); setTimeout(() => { state.loadingLeaderboard = false; render(); }, 500); } 
-                render(); 
+                else { render(); }
             },
             toggleSidebar: () => { state.showSidebar = !state.showSidebar; render(); },
             
             // ... Date & Plans ...
             setViewDate: (d) => { state.viewDate = d; render(); },
-            // 允许向未来滚动，不设限
+            // 修改：允许无限向未来/过去翻页，不设限
             changeDate: (days) => { 
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
                 state.viewDate = current.toISOString().split('T')[0]; 
                 render(); 
             },
-            goToToday: () => { state.viewDate = getTodayStr(); render(); },
+            // 修改：回到今天，不带条件限制
+            goToToday: () => { 
+                state.viewDate = getTodayStr(); 
+                render(); 
+            },
             
             openAddPlan: () => { state.editingPlanId = null; const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : ''; state.planFormData = { target: 1000, content: '', linkedGoalId: defaultGoal }; state.showPlanModal = true; render(); },
             openEditPlan: (id) => { const plan = state.dailyPlans.find(p => p.id === id); if(plan) { state.editingPlanId = id; state.planFormData = { ...plan }; state.showPlanModal = true; render(); } },
@@ -701,7 +791,63 @@
             randAvatar: () => { state.tempProfile.avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}`; render(); },
             saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); render(); },
 
-            // --- 文章状态 Action ---
+            // --- Custom Calendar Actions (Independent of Main Render) ---
+            openCalendar: (index) => {
+                state.calendar.visible = true;
+                state.calendar.targetIndex = index;
+                const currentVal = state.articleFormData.milestones[index].date;
+                if (currentVal) {
+                    const d = parseSafeDate(currentVal);
+                    if (d) {
+                        state.calendar.currentYear = d.getFullYear();
+                        state.calendar.currentMonth = d.getMonth();
+                    }
+                } else {
+                    const now = new Date();
+                    state.calendar.currentYear = now.getFullYear();
+                    state.calendar.currentMonth = now.getMonth();
+                }
+                renderCalendarComponent();
+            },
+            closeCalendar: () => {
+                state.calendar.visible = false;
+                state.calendar.targetIndex = null;
+                renderCalendarComponent();
+            },
+            calendarPrevMonth: () => {
+                let { currentMonth, currentYear } = state.calendar;
+                if (currentMonth === 0) { currentMonth = 11; currentYear--; } 
+                else { currentMonth--; }
+                state.calendar.currentMonth = currentMonth;
+                state.calendar.currentYear = currentYear;
+                renderCalendarComponent();
+            },
+            calendarNextMonth: () => {
+                let { currentMonth, currentYear } = state.calendar;
+                if (currentMonth === 11) { currentMonth = 0; currentYear++; } 
+                else { currentMonth++; }
+                state.calendar.currentMonth = currentMonth;
+                state.calendar.currentYear = currentYear;
+                renderCalendarComponent();
+            },
+            selectCalendarDate: (day) => {
+                const { currentYear, currentMonth, targetIndex } = state.calendar;
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                if (targetIndex !== null) {
+                    // Update Data
+                    state.articleFormData.milestones[targetIndex].date = dateStr;
+                    state.articleFormData.milestones = sortMilestones(state.articleFormData.milestones);
+                    
+                    // Partial Update DOM
+                    renderMilestonesList();
+                    updateStatusFromMilestones();
+                }
+                
+                actions.closeCalendar();
+            },
+
+            // --- Article Actions ---
             openAddArticle: () => {
                 state.articleStatusTouched = false; 
                 const defaultType = '期刊论文';
@@ -819,12 +965,7 @@
                 state.articleFormData.milestones[index][field] = value;
                 if (field === 'label') updateStatusFromMilestones();
             },
-            updateMilestoneDate: (index, value) => {
-                state.articleFormData.milestones[index].date = value;
-                state.articleFormData.milestones = sortMilestones(state.articleFormData.milestones);
-                renderMilestonesList();
-                updateStatusFromMilestones();
-            },
+            // Note: updateMilestoneDate is replaced by selectCalendarDate
             toggleMilestoneNote: (index) => {
                 const m = state.articleFormData.milestones[index];
                 m.expanded = !m.expanded;
@@ -878,7 +1019,8 @@
             Wand: `<i data-lucide="wand-2" class="w-3 h-3"></i>`, Cal: `<i data-lucide="calendar" class="w-4 h-4"></i>`,
             Left: `<i data-lucide="chevron-left" class="w-5 h-5"></i>`, Right: `<i data-lucide="chevron-right" class="w-5 h-5"></i>`,
             File: `<i data-lucide="file-text" class="w-6 h-6"></i>`, Book: `<i data-lucide="book" class="w-4 h-4"></i>`,
-            Refresh: `<i data-lucide="refresh-cw" class="w-3 h-3"></i>`, Down: `<i data-lucide="chevron-down" class="w-4 h-4"></i>`
+            Refresh: `<i data-lucide="refresh-cw" class="w-3 h-3"></i>`, Down: `<i data-lucide="chevron-down" class="w-4 h-4"></i>`,
+            Trophy: `<i data-lucide="trophy" class="w-5 h-5"></i>`
         };
 
         function AppLogo(size = "w-12 h-12") {
@@ -1070,6 +1212,12 @@
             if (!app) return;
             cleanOldPlans();
             
+            // 每次 Render 主页面时，确保日历组件也处于正确状态 (主要是隐藏)
+            // 但如果仅仅是切换Tab，我们不需要重置日历。日历状态由 actions.openCalendar/closeCalendar 管理。
+            // 只有当 View 彻底改变 (如 login) 时才需要特别注意。
+            // 为了安全起见，我们在这里也调用一次 renderCalendarComponent 以保持同步（主要是防止 DOM 被 wipe 后的状态不一致）
+            renderCalendarComponent();
+
             let htmlContent = '';
             
             if (state.view === 'login') {
@@ -1080,7 +1228,7 @@
                 } else {
                     let content = '';
                     if (state.activeTab === 'dashboard') content = renderDashboard();
-                    else if (state.activeTab === 'rank') content = renderRank();
+                    else if (state.activeTab === 'rank') content = renderRank(); // 榜单内容渲染保持不变
                     else if (state.activeTab === 'add') content = renderAddEntry();
                     else if (state.activeTab === 'articles') content = renderArticles();
                     else content = renderHistory(); 
@@ -1177,9 +1325,11 @@
                         </div>`;
                     }
 
-                    const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('articles')" class="flex flex-col items-center gap-1 ${state.activeTab==='articles'?'text-indigo-600':'text-slate-400'}">${Icons.File}<span class="text-[10px]">文章</span></button><button onclick="actions.setTab('rank')" class="flex flex-col items-center gap-1 ${state.activeTab==='rank'?'text-indigo-600':'text-slate-400'}">${Icons.Medal}<span class="text-[10px]">榜单</span></button></nav>`;
+                    // 修改底部导航栏，只有三个按钮
+                    const nav = `<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-100 flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><button onclick="actions.setTab('dashboard')" class="flex flex-col items-center gap-1 ${state.activeTab==='dashboard'?'text-indigo-600':'text-slate-400'}">${Icons.Target}<span class="text-[10px]">主页</span></button><button onclick="actions.setTab('add')" class="flex flex-col items-center gap-1 ${state.activeTab==='add'?'text-indigo-600':'text-slate-400'}"><div class="bg-indigo-600 text-white p-3 rounded-full shadow-lg shadow-indigo-200 -mt-6 mb-1 transform active:scale-95 transition"><span class="block">${Icons.Plus}</span></div><span class="text-[10px]">打卡</span></button><button onclick="actions.setTab('articles')" class="flex flex-col items-center gap-1 ${state.activeTab==='articles'?'text-indigo-600':'text-slate-400'}">${Icons.File}<span class="text-[10px]">文章</span></button></nav>`;
 
-                    htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600 hover:bg-slate-50 p-1 rounded-lg">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${AppLogo("w-6 h-6")}</div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
+                    // 修改头部，添加榜单按钮
+                    htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30"><div class="flex items-center gap-2"><button onclick="actions.toggleSidebar()" class="text-slate-600 hover:bg-slate-50 p-1 rounded-lg">${Icons.Menu}</button><span class="font-bold text-lg text-slate-800">博士写作助手</span></div><div class="flex items-center gap-3"><button onclick="actions.setTab('rank')" class="text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 p-1.5 rounded-full transition relative group" title="龙虎榜">${Icons.Trophy}</button><div class="text-sm text-indigo-600 font-bold bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${AppLogo("w-6 h-6")}</div></div></header><main class="flex-1 overflow-hidden relative">${content}</main>${nav}${sidebar}${modals}`;
                 }
             }
             
