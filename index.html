@@ -23,60 +23,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        #app-init-screen {
-            position: fixed;
-            inset: 0;
-            background-color: #ffffff;
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.5s ease-out, visibility 0.5s;
-        }
-
-        #app-init-screen.fade-out {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .init-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            text-align: center;
-        }
-
-        .init-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(99, 102, 241, 0.1);
-            border-top-color: #6366F1;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-bottom: 24px;
-        }
-
-        .init-text {
-            color: #4b5563;
-            font-size: 15px;
-            font-weight: 500;
-            letter-spacing: 0.02em;
-            animation: pulse 2s infinite ease-in-out;
-        }
-
-        #app-main {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease-in;
-        }
-        
-        #app-main.visible {
-            display: block;
-            opacity: 1;
-        }
-
+        /* --- 原有动画定义 --- */
         @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -84,7 +31,6 @@
         @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
         .animate-slide-up { animation: slide-up 0.3s ease-out; }
         .animate-fade-in { animation: fade-in 0.2s ease-out; }
@@ -149,20 +95,85 @@
         
         .calendar-day.empty { pointer-events: none; }
         .calendar-day.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; }
+
+        /* =========================================
+           新增：全屏加载动画样式 (解决白屏问题)
+           ========================================= */
+        #startup-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top left, #eef2ff 0, #f5f3ff 40%, #f9fafb 100%);
+            transition: opacity 0.3s ease;
+        }
+
+        #startup-loading .loading-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 24px 32px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(8px);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border-radius: 999px;
+            border: 3px solid rgba(129, 140, 248, 0.25);
+            border-top-color: #6366f1;
+            animation: phdflow-spin 0.9s linear infinite;
+        }
+
+        .loading-text-main {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .loading-text-sub {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        @keyframes phdflow-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 隐藏加载层的辅助类 */
+        .hidden-loading {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* 根容器初始隐藏，避免闪烁 */
+        #app-root {
+            transition: opacity 0.3s ease-in;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 全新初始化加载层 -->
-    <div id="app-init-screen">
-        <div class="init-wrapper">
-            <div class="init-spinner"></div>
-            <p class="init-text">第一次打开 PhD Flow，正在为你整理写作书桌…</p>
+    <!-- 全新：全屏加载覆盖层 (First Paint) -->
+    <div id="startup-loading">
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <div class="loading-text-main">PhD Flow 正在为你整理书桌…</div>
+            <div class="loading-text-sub">如果稍微有点久，请耐心等一小会儿 💜</div>
         </div>
     </div>
 
-    <!-- 应用主容器 (初始化完成后显示) -->
-    <div id="app-main">
+    <!-- 应用主容器 (用 opacity:0 控制初始隐藏) -->
+    <div id="app-root" style="opacity:0;">
         <!-- 原应用挂载点 -->
         <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
             <!-- 内容由 JS 生成 -->
@@ -364,7 +375,7 @@
             graduationDate: '',
             globalGoalType: '毕业',
             globalGoalName: '毕业论文',
-            currentUserId: null, // 新增：记录当前用户的唯一 ID
+            currentUserId: null,
             
             currentSession: null, 
             leaderboard: [],
@@ -459,20 +470,17 @@
             return date;
         }
 
-        // --- 核心：用户账号管理 (改动部分) ---
-
-        // 1. 生成稳定 Hash
+        // --- 核心：用户账号管理 ---
         function simpleHash(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 const char = str.charCodeAt(i);
                 hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32bit integer
+                hash = hash & hash; 
             }
             return Math.abs(hash).toString(16);
         }
 
-        // 2. 获取所有用户的大对象
         function getUnifiedUsers() {
             return Storage.get('phdflow_users', {});
         }
@@ -481,56 +489,35 @@
             Storage.set('phdflow_users', users);
         }
 
-        // 3. 登录与数据迁移核心逻辑
         function loginUser(nickname, password) {
-            // 生成唯一 ID
             const rawId = nickname.trim() + '::' + password.trim();
             const userId = 'phdflow_user_' + simpleHash(rawId);
-            
-            // 记录当前活跃用户
             Storage.set('phdflow_active_user_id', userId);
             state.currentUserId = userId;
-            
-            // 读取数据
             const users = getUnifiedUsers();
             let userData = users[userId];
             
-            // 迁移逻辑：如果该账号是新的 (userData 不存在)，尝试查找旧版 localStorage 数据
             if (!userData) {
-                // 尝试查找旧版 key (phd_data_nickname)
                 const legacyKey = `phd_data_${nickname}`;
                 const legacyData = Storage.get(legacyKey);
                 
                 if (legacyData) {
                     console.log("检测到旧版数据，正在迁移...", nickname);
-                    // 迁移旧数据
                     userData = legacyData;
-                    
-                    // 尝试迁移旧的 Session
                     const legacySession = Storage.get(`phd_session_${nickname}`);
                     if (legacySession) userData.currentSession = legacySession;
-
-                    // 尝试迁移旧的头像设置
                     const userDir = Storage.get('phd_users_directory', {});
                     if (userDir[nickname]) {
                         if (!userData.settings) userData.settings = {};
                         userData.settings.avatar = userDir[nickname].avatar;
                     }
-
-                    // 确保基本结构完整
                     if (!userData.settings) userData.settings = { avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
-
                 } else {
-                    // 彻底的新用户，初始化默认数据
                     userData = createDefaultUserData();
                 }
-                
-                // 保存迁移后或新建的数据到统一结构中
                 users[userId] = userData;
                 saveUnifiedUsers(users);
             }
-            
-            // 将数据加载到应用 State
             restoreAppStateFromUserData(userData, nickname);
         }
 
@@ -573,7 +560,6 @@
             }
             state.graduationDate = safeGradDate;
 
-            // 文章数据处理（兼容旧版 Milestone）
             let loadedArticles = Array.isArray(data.articles) ? data.articles : [];
             state.articles = loadedArticles.map(a => {
                 if (!a.milestones && a.submissionDate) {
@@ -593,13 +579,12 @@
             
             state.view = 'app';
             render();
+            // 关键：渲染完成后隐藏加载层
+            hideStartupLoading();
         }
 
-        // 4. 保存数据逻辑 (统一写入 phdflow_users)
         function saveUserData() {
             if (!state.currentUserId) return;
-            
-            // 放到宏任务队列，避免阻塞 UI
             setTimeout(() => {
                 const dataToSave = { 
                     entries: state.entries, 
@@ -615,7 +600,6 @@
                         avatar: state.user.avatar
                     }
                 };
-
                 const users = getUnifiedUsers();
                 users[state.currentUserId] = dataToSave;
                 saveUnifiedUsers(users);
@@ -917,17 +901,15 @@
 
         // --- 交互 Action ---
         window.actions = {
-            // 改动 1：登录逻辑更新
             auth: (e) => { 
                 e.preventDefault(); 
                 const nickname = e.target.username.value.trim() || "匿名博士";
-                const password = e.target.password.value.trim() || ""; // 允许空密码，但会影响Hash
+                const password = e.target.password.value.trim() || ""; 
                 loginUser(nickname, password); 
             },
             
             askLogout: () => { state.showSidebar = false; state.showLogoutModal = true; render(); },
             
-            // 改动 2：登出逻辑更新
             confirmLogout: () => { 
                 Storage.remove('phdflow_active_user_id'); 
                 state.user = null; 
@@ -935,6 +917,7 @@
                 state.showLogoutModal = false; 
                 state.view = 'login'; 
                 render(); 
+                hideStartupLoading(); // 确保退出登录也移除loading
             },
             
             cancelLogout: () => { state.showLogoutModal = false; render(); },
@@ -1751,75 +1734,70 @@
             app.innerHTML = htmlContent;
             if (window.lucide) lucide.createIcons();
 
-            const initScreen = document.getElementById('app-init-screen');
-            const appMain = document.getElementById('app-main');
-
+            // 每次 Render 时，如果是 View 切换完毕，尝试隐藏 Loading
             if (state.view !== 'loading') {
-                if (initScreen) {
-                    initScreen.classList.add('fade-out');
-                    setTimeout(() => {
-                        initScreen.style.display = 'none';
-                    }, 500);
-                }
-                if (appMain) {
-                    appMain.style.display = 'block';
-                    setTimeout(() => appMain.classList.add('visible'), 50);
-                }
-            } else {
-                if (initScreen) initScreen.style.display = 'flex';
-                if (appMain) appMain.style.display = 'none';
+                hideStartupLoading();
             }
         }
         
-        // --- 初始化入口 (改动部分) ---
+        // --- 新增：关闭全屏加载 ---
+        function hideStartupLoading() {
+            const loader = document.getElementById('startup-loading');
+            const appRoot = document.getElementById('app-root');
+            if (loader && !loader.classList.contains('hidden-loading')) {
+                loader.classList.add('hidden-loading');
+                setTimeout(() => {
+                    loader.style.display = 'none';
+                }, 350);
+            }
+            if (appRoot) {
+                appRoot.style.opacity = '1';
+            }
+        }
+
+        // --- 初始化入口 ---
         function initApp() {
             try {
-                const initScreen = document.getElementById('app-init-screen');
-                if (initScreen) initScreen.style.display = 'flex';
-                
                 requestAnimationFrame(() => {
-                    // 读取持久化的 activeUserId
                     const activeUserId = Storage.get('phdflow_active_user_id', null);
                     
                     pickEnergyQuote();
                     startEnergyQuoteAutoRefresh();
                     
                     if (activeUserId) { 
-                        // 如果有上次登录记录，直接读取该账号数据
                         const users = getUnifiedUsers();
                         const userData = users[activeUserId];
                         if (userData) {
                             state.currentUserId = activeUserId;
-                            // 恢复数据，昵称作为回显
                             restoreAppStateFromUserData(userData, userData.settings?.name || "老朋友");
                         } else {
                             state.view = 'login'; 
                             render(); 
+                            // 登录页渲染完也要关闭 Loading
+                            hideStartupLoading();
                         }
                     } else { 
                         state.view = 'login'; 
                         render(); 
+                        hideStartupLoading();
                     }
                 });
             } catch (error) { 
                 console.error("Init failed:", error); 
                 state.view = 'login'; 
                 render(); 
+                hideStartupLoading();
             }
         }
 
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
-        
-        setTimeout(() => { 
-            const initScreen = document.getElementById('app-init-screen');
-            if (initScreen && !initScreen.classList.contains('fade-out')) { 
-                if(state.view === 'loading') {
-                     state.view = 'login'; 
-                     render();
-                }
-            } 
-        }, 3000);
+        // 兜底保护：防止 JS 报错导致永远卡在加载页
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                hideStartupLoading();
+            }, 8000);
+        });
 
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
     </script>
 </body>
 </html>
