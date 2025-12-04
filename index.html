@@ -23,7 +23,6 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f9fafb; }
         
-        /* --- 需求 2：全新的初始化加载层样式 --- */
         #app-init-screen {
             position: fixed;
             inset: 0;
@@ -68,7 +67,7 @@
         }
 
         #app-main {
-            display: none; /* 初始隐藏，由 JS 控制显示 */
+            display: none;
             opacity: 0;
             transition: opacity 0.3s ease-in;
         }
@@ -78,7 +77,6 @@
             opacity: 1;
         }
 
-        /* --- 原有动画定义 --- */
         @keyframes slide-up { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -126,11 +124,9 @@
         .spinner { border: 2px solid rgba(0,0,0,0.1); border-top-color: #6366F1; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* Timeline Connector */
         .timeline-line { position: absolute; left: 6px; top: 12px; bottom: -20px; width: 2px; background-color: #e2e8f0; z-index: 0; }
         .group:last-child .timeline-line { display: none; }
         
-        /* Article Type Tags */
         .badge-journal { background-color: #eff6ff; color: #3b82f6; border: 1px solid #dbeafe; }
         .badge-conf { background-color: #f5f3ff; color: #8b5cf6; border: 1px solid #ede9fe; }
         .badge-project { background-color: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; }
@@ -138,23 +134,17 @@
         .badge-book { background-color: #fff1f2; color: #be123c; border: 1px solid #ffe4e6; }
         .badge-other { background-color: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
         
-        /* Scrollbar for milestones */
         .milestones-scroll::-webkit-scrollbar { width: 4px; }
         .milestones-scroll::-webkit-scrollbar-track { background: transparent; }
         .milestones-scroll::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
 
-        /* Custom Calendar Styles (Used for both Milestone Calendar and Main Calendar) */
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .calendar-day { display: flex; align-items: center; justify-content: center; height: 36px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
         .calendar-day:hover { background-color: #f3f4f6; }
         
-        /* 选中态 */
         .calendar-day.selected { background-color: #4f46e5; color: white; font-weight: bold; border-radius: 50%; }
-        /* 临时选中态 (主日历中) */
         .calendar-day.temp-selected { background-color: #6366f1; color: white; font-weight: bold; border-radius: 50%; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4); }
-        /* 今天 */
         .calendar-day.today { border: 1px solid #6366f1; color: #6366f1; border-radius: 50%; }
-        /* 选中且是今天 */
         .calendar-day.today.selected, .calendar-day.today.temp-selected { border: 2px solid white; }
         
         .calendar-day.empty { pointer-events: none; }
@@ -163,7 +153,7 @@
 </head>
 <body class="bg-gray-50 text-slate-800 selection:bg-indigo-100 min-h-screen">
 
-    <!-- 需求 2：全新初始化加载层 -->
+    <!-- 全新初始化加载层 -->
     <div id="app-init-screen">
         <div class="init-wrapper">
             <div class="init-spinner"></div>
@@ -171,7 +161,7 @@
         </div>
     </div>
 
-    <!-- 需求 2：应用主容器 (初始化完成后显示) -->
+    <!-- 应用主容器 (初始化完成后显示) -->
     <div id="app-main">
         <!-- 原应用挂载点 -->
         <div id="app" class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl overflow-hidden relative flex flex-col">
@@ -181,7 +171,7 @@
         <!-- 文章节点的日历挂载点 -->
         <div id="calendar-mount" class="relative z-[100]"></div>
         
-        <!-- 需求 1：主日历挂载点 -->
+        <!-- 主日历挂载点 -->
         <div id="main-calendar-mount" class="relative z-[100]"></div>
     </div>
 
@@ -192,13 +182,11 @@
     <!-- 核心逻辑 -->
     <script>
         // --- 核心配置 ---
-        // 定义日期范围：前后20年
         const TODAY_OBJ = new Date();
         const YEAR_RANGE = 20;
         const MIN_DATE = new Date(TODAY_OBJ.getFullYear() - YEAR_RANGE, 0, 1);
         const MAX_DATE = new Date(TODAY_OBJ.getFullYear() + YEAR_RANGE, 11, 31);
 
-        // 辅助函数：格式化日期为 input 用的 YYYY-MM-DD
         function formatDateToInput(d) {
             const y = d.getFullYear();
             const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -376,6 +364,7 @@
             graduationDate: '',
             globalGoalType: '毕业',
             globalGoalName: '毕业论文',
+            currentUserId: null, // 新增：记录当前用户的唯一 ID
             
             currentSession: null, 
             leaderboard: [],
@@ -427,12 +416,12 @@
                 currentYear: new Date().getFullYear(),
                 currentMonth: new Date().getMonth()
             },
-            // 需求 1：新增主日历状态 (用于首页切换日期)
+            // 主日历状态
             mainCalendar: {
                 visible: false,
                 viewYear: new Date().getFullYear(),
                 viewMonth: new Date().getMonth(),
-                selectedDateStr: null // 弹窗中临时选中的日期
+                selectedDateStr: null 
             }
         };
 
@@ -470,68 +459,149 @@
             return date;
         }
 
-        // --- 用户系统 ---
-        function getUsersDirectory() { return Storage.get('phd_users_directory', {}); }
-        function saveUsersDirectory(dir) { Storage.set('phd_users_directory', dir); }
+        // --- 核心：用户账号管理 (改动部分) ---
 
-        function loadLocalUser(username) {
-            try {
-                const dir = getUsersDirectory();
-                if (!dir[username]) {
-                    dir[username] = { password: 'any', avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
-                    saveUsersDirectory(dir);
-                    Storage.set(`phd_data_${username}`, { entries: [], customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }] });
-                }
-
-                state.user = { username: username, avatar: dir[username].avatar };
-                const data = Storage.get(`phd_data_${username}`, {});
-                
-                state.entries = Array.isArray(data.entries) ? data.entries : [];
-                state.customGoals = Array.isArray(data.customGoals) ? data.customGoals : [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }];
-                state.dailyPlans = Array.isArray(data.dailyPlans) ? data.dailyPlans : [];
-                state.globalGoalType = data.globalGoalType || '毕业';
-                state.globalGoalName = data.globalGoalName || '毕业论文';
-                
-                let loadedArticles = Array.isArray(data.articles) ? data.articles : [];
-                state.articles = loadedArticles.map(a => {
-                    if (!a.milestones && a.submissionDate) {
-                        const ms = [{ label: '投稿', date: a.submissionDate, note: '' }];
-                        if (a.reviewDate) ms.push({ label: '一审返回', date: a.reviewDate, note: '' });
-                        if (a.revisionDate) ms.push({ label: '返修提交', date: a.revisionDate, note: '' });
-                        if (a.acceptDate) ms.push({ label: '正式录用', date: a.acceptDate, note: '' });
-                        if (a.customMilestones) {
-                            a.customMilestones.forEach(c => ms.push({ label: c.label, date: c.date, note: c.note }));
-                        }
-                        a.milestones = ms;
-                    }
-                    return a;
-                });
-
-                state.totalWordGoal = data.totalWordGoal || 100000;
-                
-                let safeGradDate = '';
-                if (data.graduationDate) {
-                    const parsed = parseSafeDate(data.graduationDate);
-                    if (parsed) safeGradDate = data.graduationDate;
-                }
-                state.graduationDate = safeGradDate;
-                state.currentSession = Storage.get(`phd_session_${username}`, null);
-                
-                Storage.set('phd_current_user', username);
-                state.view = 'app';
-                
-                render();
-            } catch(e) {
-                console.error("User load failed:", e);
-                state.view = 'login';
-                render();
+        // 1. 生成稳定 Hash
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
             }
+            return Math.abs(hash).toString(16);
         }
 
+        // 2. 获取所有用户的大对象
+        function getUnifiedUsers() {
+            return Storage.get('phdflow_users', {});
+        }
+
+        function saveUnifiedUsers(users) {
+            Storage.set('phdflow_users', users);
+        }
+
+        // 3. 登录与数据迁移核心逻辑
+        function loginUser(nickname, password) {
+            // 生成唯一 ID
+            const rawId = nickname.trim() + '::' + password.trim();
+            const userId = 'phdflow_user_' + simpleHash(rawId);
+            
+            // 记录当前活跃用户
+            Storage.set('phdflow_active_user_id', userId);
+            state.currentUserId = userId;
+            
+            // 读取数据
+            const users = getUnifiedUsers();
+            let userData = users[userId];
+            
+            // 迁移逻辑：如果该账号是新的 (userData 不存在)，尝试查找旧版 localStorage 数据
+            if (!userData) {
+                // 尝试查找旧版 key (phd_data_nickname)
+                const legacyKey = `phd_data_${nickname}`;
+                const legacyData = Storage.get(legacyKey);
+                
+                if (legacyData) {
+                    console.log("检测到旧版数据，正在迁移...", nickname);
+                    // 迁移旧数据
+                    userData = legacyData;
+                    
+                    // 尝试迁移旧的 Session
+                    const legacySession = Storage.get(`phd_session_${nickname}`);
+                    if (legacySession) userData.currentSession = legacySession;
+
+                    // 尝试迁移旧的头像设置
+                    const userDir = Storage.get('phd_users_directory', {});
+                    if (userDir[nickname]) {
+                        if (!userData.settings) userData.settings = {};
+                        userData.settings.avatar = userDir[nickname].avatar;
+                    }
+
+                    // 确保基本结构完整
+                    if (!userData.settings) userData.settings = { avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` };
+
+                } else {
+                    // 彻底的新用户，初始化默认数据
+                    userData = createDefaultUserData();
+                }
+                
+                // 保存迁移后或新建的数据到统一结构中
+                users[userId] = userData;
+                saveUnifiedUsers(users);
+            }
+            
+            // 将数据加载到应用 State
+            restoreAppStateFromUserData(userData, nickname);
+        }
+
+        function createDefaultUserData() {
+            return {
+                entries: [],
+                customGoals: [{ id: 'g1', name: '毕业论文', currentQty: 0, targetQty: 1, unit: '篇', accumulatedWords: 0, targetWords: 100000 }],
+                dailyPlans: [],
+                articles: [],
+                totalWordGoal: 100000,
+                graduationDate: '',
+                globalGoalType: '毕业',
+                globalGoalName: '毕业论文',
+                currentSession: null,
+                settings: { 
+                    avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` 
+                }
+            };
+        }
+
+        function restoreAppStateFromUserData(data, nickname) {
+            state.user = { 
+                username: nickname, 
+                avatar: data.settings?.avatar || `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}` 
+            };
+            
+            state.entries = Array.isArray(data.entries) ? data.entries : [];
+            state.customGoals = Array.isArray(data.customGoals) ? data.customGoals : [];
+            if(state.customGoals.length === 0) state.customGoals = createDefaultUserData().customGoals;
+
+            state.dailyPlans = Array.isArray(data.dailyPlans) ? data.dailyPlans : [];
+            state.globalGoalType = data.globalGoalType || '毕业';
+            state.globalGoalName = data.globalGoalName || '毕业论文';
+            state.totalWordGoal = data.totalWordGoal || 100000;
+            
+            let safeGradDate = '';
+            if (data.graduationDate) {
+                const parsed = parseSafeDate(data.graduationDate);
+                if (parsed) safeGradDate = data.graduationDate;
+            }
+            state.graduationDate = safeGradDate;
+
+            // 文章数据处理（兼容旧版 Milestone）
+            let loadedArticles = Array.isArray(data.articles) ? data.articles : [];
+            state.articles = loadedArticles.map(a => {
+                if (!a.milestones && a.submissionDate) {
+                    const ms = [{ label: '投稿', date: a.submissionDate, note: '' }];
+                    if (a.reviewDate) ms.push({ label: '一审返回', date: a.reviewDate, note: '' });
+                    if (a.revisionDate) ms.push({ label: '返修提交', date: a.revisionDate, note: '' });
+                    if (a.acceptDate) ms.push({ label: '正式录用', date: a.acceptDate, note: '' });
+                    if (a.customMilestones) {
+                        a.customMilestones.forEach(c => ms.push({ label: c.label, date: c.date, note: c.note }));
+                    }
+                    a.milestones = ms;
+                }
+                return a;
+            });
+
+            state.currentSession = data.currentSession || null;
+            
+            state.view = 'app';
+            render();
+        }
+
+        // 4. 保存数据逻辑 (统一写入 phdflow_users)
         function saveUserData() {
-            if (!state.user) return;
+            if (!state.currentUserId) return;
+            
+            // 放到宏任务队列，避免阻塞 UI
             setTimeout(() => {
-                const data = { 
+                const dataToSave = { 
                     entries: state.entries, 
                     customGoals: state.customGoals, 
                     dailyPlans: state.dailyPlans, 
@@ -539,11 +609,16 @@
                     graduationDate: state.graduationDate, 
                     articles: state.articles,
                     globalGoalType: state.globalGoalType,
-                    globalGoalName: state.globalGoalName
+                    globalGoalName: state.globalGoalName,
+                    currentSession: state.currentSession,
+                    settings: {
+                        avatar: state.user.avatar
+                    }
                 };
-                Storage.set(`phd_data_${state.user.username}`, data);
-                if (state.currentSession) Storage.set(`phd_session_${state.user.username}`, state.currentSession);
-                else Storage.remove(`phd_session_${state.user.username}`);
+
+                const users = getUnifiedUsers();
+                users[state.currentUserId] = dataToSave;
+                saveUnifiedUsers(users);
             }, 0);
         }
 
@@ -762,7 +837,7 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        // --- 需求 1：Main Calendar Component (主日历渲染) ---
+        // --- Main Calendar Component ---
         function renderMainCalendarComponent() {
             const mount = document.getElementById('main-calendar-mount');
             if (!mount) return;
@@ -788,16 +863,11 @@
                 const isToday = (today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day);
                 const isSelected = selectedDateStr === dateStr;
                 
-                // 检查范围 (MIN_DATE to MAX_DATE)
                 const isDisabled = dateObj < MIN_DATE || dateObj > MAX_DATE;
 
                 daysHtml += `<div onclick="${isDisabled ? '' : `actions.selectMainCalDay(${day})`}" class="calendar-day ${isToday ? 'today' : ''} ${isSelected ? 'temp-selected' : ''} ${isDisabled ? 'disabled' : ''}">${day}</div>`;
             }
 
-            // 范围限制检查，控制月份切换按钮
-            const prevMonthDate = new Date(viewYear, viewMonth - 1, 1);
-            const nextMonthDate = new Date(viewYear, viewMonth + 1, 1);
-            // 简单判断：如果上个月最后一天小于 MIN_DATE，禁用左翻页；下个月第一天大于 MAX_DATE，禁用右翻页
             const canPrev = new Date(viewYear, viewMonth, 0) >= MIN_DATE;
             const canNext = new Date(viewYear, viewMonth + 1, 1) <= MAX_DATE;
 
@@ -847,9 +917,26 @@
 
         // --- 交互 Action ---
         window.actions = {
-            auth: (e) => { e.preventDefault(); const u = e.target.username.value.trim() || "匿名博士"; loadLocalUser(u); },
+            // 改动 1：登录逻辑更新
+            auth: (e) => { 
+                e.preventDefault(); 
+                const nickname = e.target.username.value.trim() || "匿名博士";
+                const password = e.target.password.value.trim() || ""; // 允许空密码，但会影响Hash
+                loginUser(nickname, password); 
+            },
+            
             askLogout: () => { state.showSidebar = false; state.showLogoutModal = true; render(); },
-            confirmLogout: () => { Storage.remove('phd_current_user'); state.user = null; state.showLogoutModal = false; state.view = 'login'; render(); },
+            
+            // 改动 2：登出逻辑更新
+            confirmLogout: () => { 
+                Storage.remove('phdflow_active_user_id'); 
+                state.user = null; 
+                state.currentUserId = null;
+                state.showLogoutModal = false; 
+                state.view = 'login'; 
+                render(); 
+            },
+            
             cancelLogout: () => { state.showLogoutModal = false; render(); },
             
             setTab: (t) => { 
@@ -866,16 +953,13 @@
             
             setViewDate: (d) => { state.viewDate = d; render(); },
             
-            // 需求 1 修改：changeDate 只保留"前一天"逻辑 (days = -1)
             changeDate: (days) => { 
                 if (days > 0) {
-                    // 如果传入 >0 (右箭头)，直接调用日历弹窗
                     actions.openMainCalendar();
                     return;
                 }
                 const current = parseSafeDate(state.viewDate) || new Date(); 
                 current.setDate(current.getDate() + days); 
-                // 范围检查
                 if (current < MIN_DATE || current > MAX_DATE) return;
 
                 const newDateStr = current.toISOString().split('T')[0];
@@ -888,7 +972,6 @@
                 render(); 
             },
 
-            // --- 需求 1：主日历交互 Action ---
             openMainCalendar: () => {
                 const d = parseSafeDate(state.viewDate) || new Date();
                 state.mainCalendar.viewYear = d.getFullYear();
@@ -918,7 +1001,6 @@
             selectMainCalDay: (day) => {
                 const { viewYear, viewMonth } = state.mainCalendar;
                 const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                // 临时选中，不立即关闭
                 state.mainCalendar.selectedDateStr = dateStr;
                 renderMainCalendarComponent();
             },
@@ -927,14 +1009,14 @@
                     state.viewDate = state.mainCalendar.selectedDateStr;
                     state.mainCalendar.visible = false;
                     renderMainCalendarComponent();
-                    render(); // 刷新主页面
+                    render(); 
                 }
             },
             resetMainCalDate: () => {
                 state.viewDate = getTodayStr();
                 state.mainCalendar.visible = false;
                 renderMainCalendarComponent();
-                render(); // 刷新主页面
+                render(); 
             },
             
             openAddPlan: () => { state.editingPlanId = null; const defaultGoal = state.customGoals.length > 0 ? state.customGoals[0].id : ''; state.planFormData = { target: 1000, content: '', linkedGoalId: defaultGoal }; state.showPlanModal = true; render(); },
@@ -1094,7 +1176,6 @@
             randAvatar: () => { state.tempProfile.avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${Date.now()}`; render(); },
             saveProfile: (e) => { e.preventDefault(); state.user = {...state.user, ...state.tempProfile}; state.showProfileModal = false; saveUserData(); render(); },
 
-            // --- Custom Calendar Actions (Milestones) ---
             openCalendar: (index) => {
                 state.calendar.visible = true;
                 state.calendar.targetIndex = index;
@@ -1145,7 +1226,6 @@
                 actions.closeCalendar();
             },
 
-            // --- Article Actions ---
             openAddArticle: () => {
                 state.articleStatusTouched = false; 
                 const defaultType = '期刊论文';
@@ -1334,7 +1414,7 @@
         }
 
         function renderLogin() {
-            return `<div class="flex flex-col items-center justify-center h-screen px-8 bg-white"><div class="mb-6 animate-float">${AppLogo("w-24 h-24")}</div><h1 class="text-2xl font-bold text-slate-800 mb-2">PhD Flow</h1><p class="text-slate-400 text-sm mb-10">暖心陪伴 · 快乐写作</p><form onsubmit="actions.auth(event)" class="w-full space-y-4"><input name="username" placeholder="例如：未来的李博士" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center font-bold text-slate-700" required><input name="password" type="password" placeholder="请输入密码" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center"><button class="w-full primary-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">进入书房</button></form><p class="mt-8 text-xs text-slate-300">Tip: 不管输入什么，点击按钮都会进入哦</p></div>`;
+            return `<div class="flex flex-col items-center justify-center h-screen px-8 bg-white"><div class="mb-6 animate-float">${AppLogo("w-24 h-24")}</div><h1 class="text-2xl font-bold text-slate-800 mb-2">PhD Flow</h1><p class="text-slate-400 text-sm mb-10">暖心陪伴 · 快乐写作</p><form onsubmit="actions.auth(event)" class="w-full space-y-4"><input name="username" placeholder="例如：未来的李博士" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center font-bold text-slate-700" required><input name="password" type="password" placeholder="请输入密码" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-2xl outline-none focus:border-indigo-500 text-center"><button class="w-full primary-gradient text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 active:scale-95 transition-transform">进入书房</button></form><p class="mt-8 text-xs text-slate-300">Tip: 请记住您的昵称和密码，数据将永久保存在本设备</p></div>`;
         }
 
         function renderDashboard() {
@@ -1397,7 +1477,6 @@
             
             </div><div class="flex-1 overflow-y-auto px-4 pt-10 pb-32 space-y-6">
             
-            <!-- 需求 1：更新后的日期条 -->
             <div class="flex justify-between items-center bg-white p-2 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-50">
                 <button onclick="actions.changeDate(-1)" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition">${Icons.Left}</button>
                 <div class="flex flex-col items-center cursor-pointer group" onclick="actions.openMainCalendar()">
@@ -1559,7 +1638,6 @@
             if (!app) return;
             cleanOldPlans();
             
-            // 同步渲染两个日历组件 (文章日历 & 需求 1 的主日历)
             renderCalendarComponent();
             renderMainCalendarComponent();
 
@@ -1659,7 +1737,7 @@
                     htmlContent = `<header class="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-50 shadow-sm z-30">
                         <div class="flex items-center gap-3">
                             <button onclick="actions.toggleSidebar()" class="active:scale-95 transition-transform flex items-center" title="菜单">
-                                <img src="./icon-180.png" alt="PhD Flow" class="w-10 h-10 rounded-2xl shadow-md border border-slate-100">
+                                <img src="${state.user.avatar}" alt="PhD Flow" class="w-10 h-10 rounded-2xl shadow-md border border-slate-100">
                             </button>
                             <span class="font-bold text-lg text-slate-800">PhD Flow</span>
                         </div>
@@ -1673,45 +1751,51 @@
             app.innerHTML = htmlContent;
             if (window.lucide) lucide.createIcons();
 
-            // 需求 2：渲染完成后，控制加载层和主应用层的显示隐藏
             const initScreen = document.getElementById('app-init-screen');
             const appMain = document.getElementById('app-main');
 
             if (state.view !== 'loading') {
                 if (initScreen) {
                     initScreen.classList.add('fade-out');
-                    // 动画结束后移除或隐藏
                     setTimeout(() => {
                         initScreen.style.display = 'none';
                     }, 500);
                 }
                 if (appMain) {
                     appMain.style.display = 'block';
-                    // 稍微延时加 visible class 以触发 CSS transition
                     setTimeout(() => appMain.classList.add('visible'), 50);
                 }
             } else {
-                // 如果是 Loading 状态
                 if (initScreen) initScreen.style.display = 'flex';
                 if (appMain) appMain.style.display = 'none';
             }
         }
         
-        // --- 需求 2：初始化入口 ---
+        // --- 初始化入口 (改动部分) ---
         function initApp() {
             try {
-                // 显示初始化层
                 const initScreen = document.getElementById('app-init-screen');
                 if (initScreen) initScreen.style.display = 'flex';
                 
-                // 执行数据加载
                 requestAnimationFrame(() => {
-                    const savedUser = Storage.get('phd_current_user', null);
+                    // 读取持久化的 activeUserId
+                    const activeUserId = Storage.get('phdflow_active_user_id', null);
+                    
                     pickEnergyQuote();
                     startEnergyQuoteAutoRefresh();
                     
-                    if (savedUser) { 
-                        loadLocalUser(savedUser); 
+                    if (activeUserId) { 
+                        // 如果有上次登录记录，直接读取该账号数据
+                        const users = getUnifiedUsers();
+                        const userData = users[activeUserId];
+                        if (userData) {
+                            state.currentUserId = activeUserId;
+                            // 恢复数据，昵称作为回显
+                            restoreAppStateFromUserData(userData, userData.settings?.name || "老朋友");
+                        } else {
+                            state.view = 'login'; 
+                            render(); 
+                        }
                     } else { 
                         state.view = 'login'; 
                         render(); 
@@ -1726,7 +1810,6 @@
 
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
         
-        // 保底逻辑
         setTimeout(() => { 
             const initScreen = document.getElementById('app-init-screen');
             if (initScreen && !initScreen.classList.contains('fade-out')) { 
